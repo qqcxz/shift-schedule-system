@@ -1,0 +1,18 @@
+{
+  "name": "shift-schedule-system",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @shift/server && npm run build -w @shift/web",
+    "dev": "concurrently -n server,web -c blue,green \"npm run dev -w @shift/server\" \"npm run dev -w @shift/web\"",
+    "start:server": "npm run start:prod -w @shift/server",
+    "dev:web": "npm run dev -w @shift/web",
+    "dev:server": "npm run dev -w @shift/server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
