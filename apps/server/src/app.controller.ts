@@ -16,6 +16,10 @@ export class AppController {
         requests: 'GET /api/requests',
         notifications: 'GET /api/notifications',
       },
+      clients: {
+        web: 'http://localhost:5173',
+        miniprogram: 'apps/miniprogram (微信开发者工具打开)',
+      },
       frontend: 'http://localhost:5173',
       time: new Date().toISOString(),
     };

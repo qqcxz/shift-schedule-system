@@ -1,0 +1,111 @@
+.toolbar {
+  margin-bottom: 20rpx;
+}
+
+.title {
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 18rpx;
+}
+
+.filter {
+  padding: 10rpx 18rpx;
+  border-radius: 999rpx;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 24rpx;
+}
+
+.filter.active {
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.item {
+  margin-bottom: 16rpx;
+}
+
+.strong {
+  font-weight: 700;
+}
+
+.meta {
+  margin-top: 14rpx;
+  line-height: 1.7;
+  color: #374151;
+  font-size: 26rpx;
+}
+
+.actions {
+  margin-top: 18rpx;
+}
+
+.tiny {
+  font-size: 22rpx;
+}
+
+.mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: flex-end;
+  z-index: 20;
+}
+
+.dialog {
+  width: 100%;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  max-height: 85vh;
+  overflow: auto;
+}
+
+.dialog-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  margin-bottom: 20rpx;
+}
+
+.field {
+  margin-bottom: 20rpx;
+}
+
+.label {
+  margin-bottom: 10rpx;
+  font-weight: 600;
+  color: #374151;
+}
+
+.picker,
+.textarea {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 14rpx;
+  padding: 18rpx 20rpx;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 160rpx;
+  box-sizing: border-box;
+}
+
+.radio-group {
+  display: flex;
+  gap: 20rpx;
+  flex-wrap: wrap;
+}
+
+.radio {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}

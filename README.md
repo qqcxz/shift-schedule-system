@@ -1,64 +1,334 @@
-# 排班表系统
+# 门店排班系统
 
-店长排班 + 店员查看/调休调班申请 + 实时审批更新。
+店长可按月设置排班，店员可查看排班并提交调休 / 调班 / 改班申请；店长审批通过后，排班表会自动更新，并通过 WebSocket 实时同步到所有在线客户端。
+
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![Stack](https://img.shields.io/badge/stack-Vue3%20%2B%20NestJS-42b883)](#技术栈)
+[![Realtime](https://img.shields.io/badge/realtime-Socket.IO-black)](#实时同步)
+
+---
+
+## 功能特性
+
+- **角色权限**
+  - 店长：排班编辑、申请审批、查看消息
+  - 店员：查看排班、提交申请、查看审批结果
+- **月度排班**
+  - 按月查看全店排班表
+  - 店长点击单元格循环切换班次（早班 / 中班 / 晚班 / 休息）
+  - 支持批量保存，带版本号防止并发覆盖
+- **调休 / 调班 / 改班**
+  - 调休：申请将某天改为休息
+  - 调班：与指定同事互换当天班次
+  - 改班：申请改为指定班次
+- **审批流**
+  - 店长通过 / 驳回
+  - 通过后事务式更新排班
+  - 自动通知相关人员
+- **实时同步**
+  - WebSocket 推送排班变更、申请创建、审批结果、站内消息
+- **开箱即用**
+  - 本地默认 `sql.js`，无需安装 MySQL
+  - 首次启动自动初始化演示门店、账号、班次和当月排班
+
+---
 
 ## 技术栈
 
-- 前端：Vue 3 + Vite + Element Plus + Pinia + Socket.IO Client
-- 后端：NestJS + TypeORM + JWT + Socket.IO
-- 数据库：默认 sql.js（本地零配置），生产可切换 MySQL
-- 部署：Docker Compose + Nginx
+| 层级 | 技术 |
+|------|------|
+| 前端 | Vue 3、Vite、Element Plus、Pinia、Vue Router、Axios、Socket.IO Client |
+| 后端 | NestJS、TypeORM、JWT、Passport、class-validator、Socket.IO |
+| 数据库 | 开发：sql.js；生产：MySQL 8 |
+| 部署 | Docker Compose、Nginx |
+
+---
+
+## 系统架构
+
+```text
+浏览器 / H5 / 微信小程序
+  ├─ REST  ──► NestJS API  ──► sql.js / MySQL
+  └─ WS    ──► Socket.IO   ──► 实时事件广播（Web 完整支持，小程序尽力连接 + 刷新兜底）
+```
+
+**典型流程：**
+
+1. 店长保存月排班 → 写入数据库 → 广播 `schedule.updated`
+2. 店员提交申请 → 写入申请表 → 通知店长 `request.created`
+3. 店长审批通过 → 更新申请状态 + 自动改排班 → 广播 `request.resolved` 与 `schedule.updated`
+
+---
+
+## 目录结构
+
+```text
+.
+├─ apps/
+│  ├─ server/                 # NestJS 后端
+│  │  ├─ src/
+│  │  │  ├─ auth/             # 登录 / JWT
+│  │  │  ├─ users/            # 用户
+│  │  │  ├─ stores/           # 门店
+│  │  │  ├─ shifts/           # 班次模板
+│  │  │  ├─ schedules/        # 排班
+│  │  │  ├─ requests/         # 调休调班申请与审批
+│  │  │  ├─ notifications/    # 消息中心
+│  │  │  └─ realtime/         # WebSocket 网关
+│  │  ├─ Dockerfile
+│  │  └─ .env.example
+│  ├─ web/                    # Vue3 前端
+│  │  ├─ src/
+│  │  │  ├─ api/              # HTTP 接口封装
+│  │  │  ├─ views/            # 登录 / 排班 / 申请 / 消息
+│  │  │  ├─ stores/           # Pinia 状态
+│  │  │  └─ realtime.ts       # Socket.IO 客户端
+│  │  └─ Dockerfile
+│  └─ miniprogram/            # 微信小程序原生客户端
+│     ├─ pages/               # 登录 / 排班 / 申请 / 消息
+│     ├─ services/            # API 封装
+│     └─ utils/               # 鉴权、请求、实时
+├─ deploy/
+│  └─ nginx.conf              # 生产反向代理与 WebSocket 转发
+├─ docker-compose.yml
+├─ package.json               # monorepo workspaces
+└─ README.md
+```
+
+---
+
+## 环境要求
+
+- Node.js 20+（推荐 22）
+- npm 10+
+- 生产部署可选：Docker / Docker Compose
+
+---
 
 ## 快速开始
 
-### 1. 安装依赖
+### 1. 克隆项目
+
+```bash
+git clone https://github.com/qqcxz/shift-schedule-system.git
+cd shift-schedule-system
+```
+
+### 2. 安装依赖
 
 ```bash
 npm install
 ```
 
-### 2. 启动开发环境
+### 3. 配置环境变量（可选）
+
+后端默认读取 `apps/server/.env`。可直接复制示例：
+
+```bash
+cp apps/server/.env.example apps/server/.env
+```
+
+默认配置：
+
+```env
+PORT=3000
+DB_TYPE=sqljs
+DB_DATABASE=./data/shift.sqlite
+JWT_SECRET=dev-secret-change-me
+CORS_ORIGIN=http://localhost:5173
+SEED_ON_BOOT=true
+```
+
+### 4. 启动开发环境
+
+同时启动前后端：
 
 ```bash
 npm run dev
 ```
 
-- 前端：http://localhost:5173
-- 后端：http://localhost:3000
-- 健康检查：http://localhost:3000/api/health
-
-也可分别启动：
+或分别启动：
 
 ```bash
 npm run dev:server
 npm run dev:web
 ```
 
-### 3. 演示账号
+### 5. 访问地址
 
-| 角色 | 用户名 | 密码 |
-|------|--------|------|
-| 店长 | manager | 123456 |
-| 店员 | staff1 | 123456 |
-| 店员 | staff2 | 123456 |
-| 店员 | staff3 | 123456 |
+| 服务 | 地址 |
+|------|------|
+| 前端页面 | http://localhost:5173 |
+| 后端入口 | http://localhost:3000/api |
+| 健康检查 | http://localhost:3000/api/health |
 
-首次启动会自动初始化门店、班次模板、当月示例排班。
+> 说明：浏览器直接打开 `http://localhost:3000/api` 会返回接口说明 JSON；业务页面请使用前端地址。
 
-## 功能
+---
 
-- 店长按月设置/修改排班（点击单元格切换班次后保存）
-- 店员查看个人与全店排班
-- 店员提交调休 / 调班 / 改班申请
-- 店长审批通过后自动更新排班
-- WebSocket 实时推送排班与申请变更
-- 消息中心查看通知
+## 演示账号
 
-## 生产部署（MySQL）
+首次启动会自动写入演示数据。
 
-1. 修改环境变量（可直接改 `docker-compose.yml` 或 `apps/server/.env`）：
+| 角色 | 用户名 | 密码 | 说明 |
+|------|--------|------|------|
+| 店长 | `manager` | `123456` | 可编辑排班、审批申请 |
+| 店员 | `staff1` | `123456` | 可查看排班、提交申请 |
+| 店员 | `staff2` | `123456` | 可查看排班、提交申请 |
+| 店员 | `staff3` | `123456` | 可查看排班、提交申请 |
+
+初始化内容包括：
+
+- 示例门店
+- 班次模板：早班 / 中班 / 晚班 / 休息
+- 当月员工示例排班
+
+---
+
+## 推荐体验路径
+
+1. 使用 `manager` 登录前端
+2. 在「排班表」点击单元格修改班次，点击保存
+3. 另开浏览器隐私窗口，用 `staff1` 登录
+4. 在「申请审批」提交调休或调班
+5. 回到店长端审批通过
+6. 两边排班表和消息中心应实时刷新
+
+---
+
+
+---
+
+## 微信小程序接入
+
+项目已提供原生小程序客户端：`apps/miniprogram`，与 Web 共用同一后端 API。
+
+### 1. 启动后端
+
+```bash
+npm run dev:server
+```
+
+### 2. 用微信开发者工具打开
+
+- 导入目录：`apps/miniprogram`
+- AppID 可用测试号 / 游客模式
+- 开发阶段勾选：**不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书**
+
+### 3. 配置后端地址
+
+- 模拟器默认：`http://127.0.0.1:3000`
+- 真机调试：在登录页填写电脑局域网 IP，例如 `http://192.168.1.8:3000`
+
+更完整说明见：[`apps/miniprogram/README.md`](./apps/miniprogram/README.md)
+
+演示账号与 Web 相同：`manager / staff1 / staff2 / staff3`，密码 `123456`。
+
+## 常用脚本
+
+在仓库根目录执行：
+
+```bash
+npm run dev          # 同时启动前后端
+npm run dev:server   # 仅后端
+npm run dev:web      # 仅前端
+npm run build        # 构建前后端
+npm run start:server # 启动已构建的后端
+```
+
+---
+
+## 核心接口
+
+所有接口默认前缀：`/api`
+
+### 认证
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/auth/login` | 登录，返回 JWT |
+| GET | `/auth/me` | 获取当前用户 |
+
+### 基础数据
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/users` | 当前门店用户列表 |
+| GET | `/stores/current` | 当前门店信息 |
+| GET | `/shifts` | 班次模板列表 |
+
+### 排班
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/schedules?month=YYYY-MM` | 查询月排班 |
+| PUT | `/schedules/month` | 店长批量保存月排班 |
+
+### 申请审批
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/requests` | 申请列表（店员仅自己，店长看全店） |
+| POST | `/requests` | 提交调休 / 调班 / 改班 |
+| POST | `/requests/:id/approve` | 店长通过 |
+| POST | `/requests/:id/reject` | 店长驳回 |
+
+### 消息
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/notifications` | 消息列表 |
+| POST | `/notifications/:id/read` | 标记单条已读 |
+| POST | `/notifications/read-all` | 全部已读 |
+
+### 实时事件（Socket.IO）
+
+| 事件 | 说明 |
+|------|------|
+| `schedule.updated` | 排班已变更 |
+| `request.created` | 新申请 |
+| `request.resolved` | 申请已处理 |
+| `notification.created` | 新消息 |
+
+连接时需携带登录 JWT：
+
+```js
+io('/', {
+  path: '/socket.io',
+  auth: { token: 'YOUR_JWT' },
+  transports: ['websocket'],
+})
+```
+
+---
+
+## 生产部署
+
+### 方式一：Docker Compose（推荐）
+
+项目已提供 `docker-compose.yml`，包含：
+
+- `mysql`
+- `redis`（预留）
+- `server`（NestJS）
+- `web`（Nginx + 前端静态资源）
+
+启动：
+
+```bash
+docker compose up -d --build
+```
+
+默认访问：
+
+- 前端：http://服务器IP
+- API：http://服务器IP/api
+- WebSocket：http://服务器IP/socket.io
+
+### 生产环境变量示例
 
 ```env
+PORT=3000
 DB_TYPE=mysql
 DB_HOST=mysql
 DB_PORT=3306
@@ -67,32 +337,122 @@ DB_PASSWORD=shift123
 DB_NAME=shift_schedule
 JWT_SECRET=请换成强随机字符串
 CORS_ORIGIN=https://your-domain.com
+SEED_ON_BOOT=true
 ```
 
-2. 启动：
+建议上线前：
+
+1. 修改默认密码和 `JWT_SECRET`
+2. 配置 HTTPS（可用 Nginx / Caddy / 云负载均衡）
+3. 关闭或限制演示账号
+4. 定期备份 MySQL 数据卷
+
+### 方式二：手动部署
 
 ```bash
-docker compose up -d --build
+# 构建
+npm run build
+
+# 启动后端
+npm run start:server
+
+# 前端产物在 apps/web/dist
+# 用 Nginx 托管静态资源，并将 /api 与 /socket.io 反代到后端
 ```
 
-访问：http://服务器IP
+可参考 `deploy/nginx.conf`。
 
-## 目录结构
+---
+
+## 业务规则说明
+
+- 只有店长可以正式修改排班
+- 店员不能直接改表，只能提交申请
+- 审批通过后才会改动正式排班
+- 排班保存使用 `version` 做乐观锁，降低并发覆盖风险
+- 同门店数据隔离（按 `storeId`）
+- 本地开发默认自动 seed；生产可按需关闭 `SEED_ON_BOOT`
+
+---
+
+## 开发说明
+
+### monorepo
+
+使用 npm workspaces：
+
+- `@shift/server`
+- `@shift/web`
+
+### 本地数据库
+
+开发环境默认使用 `sql.js`，数据库文件路径：
 
 ```text
-apps/
-  server/   NestJS API + WebSocket
-  web/      Vue3 管理端/店员端
-deploy/     Nginx 配置
-docker-compose.yml
+apps/server/data/shift.sqlite
 ```
 
-## 核心接口
+如需清空演示数据，删除该文件后重启后端即可重新初始化。
 
-- `POST /api/auth/login`
-- `GET /api/schedules?month=YYYY-MM`
-- `PUT /api/schedules/month`
-- `POST /api/requests`
-- `POST /api/requests/:id/approve`
-- `POST /api/requests/:id/reject`
-- `GET /api/notifications`
+### 前端代理
+
+开发模式下，Vite 已代理：
+
+- `/api` → `http://localhost:3000`
+- `/socket.io` → `http://localhost:3000`
+
+因此前端代码可直接请求相对路径。
+
+---
+
+## 后续可扩展
+
+- 多门店管理
+- 调班需对方先确认，再进入店长审批
+- 工时统计 / 加班统计
+- Excel 导出
+- 企业微信 / 短信通知
+- 微信小程序店员端
+
+---
+
+## 常见问题
+
+### 打开 `http://localhost:3000/api` 看到 JSON，这是正常的吗？
+
+是正常的。这是后端 API 服务，不是前端页面。请访问：
+
+- 前端：http://localhost:5173
+
+### 如何确认后端已启动？
+
+访问：
+
+```text
+http://localhost:3000/api/health
+```
+
+返回类似：
+
+```json
+{"ok":true,"service":"shift-schedule-api","time":"..."}
+```
+
+### 修改代码后如何重新初始化数据？
+
+1. 停止后端
+2. 删除 `apps/server/data/shift.sqlite`
+3. 重新启动后端
+
+---
+
+## License
+
+MIT
+
+---
+
+## 仓库
+
+- GitHub：https://github.com/qqcxz/shift-schedule-system
+

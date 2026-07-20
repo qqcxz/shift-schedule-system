@@ -1,0 +1,95 @@
+<view class="page">
+  <view class="card toolbar">
+    <view class="row between">
+      <view class="title">申请审批</view>
+      <view class="row gap">
+        <button size="mini" bindtap="loadRequests" loading="{{loading}}">刷新</button>
+        <button size="mini" class="btn-primary" bindtap="openCreate">新建申请</button>
+      </view>
+    </view>
+
+    <view class="filters">
+      <view
+        wx:for="{{statusOptions}}"
+        wx:key="value"
+        class="filter {{status === item.value ? 'active' : ''}}"
+        data-value="{{item.value}}"
+        bindtap="onStatusChange"
+      >{{item.label}}</view>
+    </view>
+  </view>
+
+  <view wx:if="{{!loading && !requests.length}}" class="empty card">暂无申请</view>
+
+  <block wx:for="{{requests}}" wx:key="id">
+    <view class="card item">
+      <view class="row between">
+        <view class="row gap">
+          <text class="strong">{{item.typeLabel}}</text>
+          <text class="tag {{item.statusClass}}">{{item.statusLabel}}</text>
+        </view>
+        <text class="muted tiny">{{item.createdAtText}}</text>
+      </view>
+
+      <view class="meta">
+        <view>申请人：{{item.requesterName}}</view>
+        <view>日期：{{item.fromDate}}</view>
+        <view wx:if="{{item.type === 'swap'}}">调班对象：{{item.targetName}}</view>
+        <view wx:if="{{item.type === 'change'}}">目标班次：{{item.toShiftName}}</view>
+        <view wx:if="{{item.reason}}">原因：{{item.reason}}</view>
+        <view wx:if="{{item.reviewNote}}">审批备注：{{item.reviewNote}}</view>
+      </view>
+
+      <view wx:if="{{isManager && item.status === 'pending'}}" class="actions row gap">
+        <button size="mini" class="btn-primary" data-id="{{item.id}}" bindtap="onApprove">通过</button>
+        <button size="mini" data-id="{{item.id}}" bindtap="onReject">驳回</button>
+      </view>
+    </view>
+  </block>
+
+  <view wx:if="{{showCreate}}" class="mask" bindtap="closeCreate">
+    <view class="dialog card" catchtap="noop">
+      <view class="dialog-title">新建申请</view>
+
+      <view class="field">
+        <view class="label">类型</view>
+        <radio-group class="radio-group" bindchange="onTypeChange">
+          <label class="radio"><radio value="leave" checked="{{form.type==='leave'}}"/>调休</label>
+          <label class="radio"><radio value="swap" checked="{{form.type==='swap'}}"/>调班</label>
+          <label class="radio"><radio value="change" checked="{{form.type==='change'}}"/>改班</label>
+        </radio-group>
+      </view>
+
+      <view class="field">
+        <view class="label">日期</view>
+        <picker mode="date" value="{{form.fromDate}}" bindchange="onDateChange">
+          <view class="picker">{{form.fromDate || '请选择日期'}}</view>
+        </picker>
+      </view>
+
+      <view class="field" wx:if="{{form.type === 'swap'}}">
+        <view class="label">调班对象</view>
+        <picker mode="selector" range="{{staffNames}}" value="{{targetIndex}}" bindchange="onTargetChange">
+          <view class="picker">{{staffNames[targetIndex] || '请选择同事'}}</view>
+        </picker>
+      </view>
+
+      <view class="field" wx:if="{{form.type === 'change'}}">
+        <view class="label">目标班次</view>
+        <picker mode="selector" range="{{shiftNames}}" value="{{shiftIndex}}" bindchange="onShiftChange">
+          <view class="picker">{{shiftNames[shiftIndex] || '请选择班次'}}</view>
+        </picker>
+      </view>
+
+      <view class="field">
+        <view class="label">原因</view>
+        <textarea class="textarea" maxlength="200" placeholder="说明申请原因" value="{{form.reason}}" bindinput="onReason" />
+      </view>
+
+      <view class="actions row gap">
+        <button size="mini" bindtap="closeCreate">取消</button>
+        <button size="mini" class="btn-primary" loading="{{submitting}}" bindtap="onCreate">提交</button>
+      </view>
+    </view>
+  </view>
+</view>

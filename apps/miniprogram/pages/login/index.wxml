@@ -1,0 +1,32 @@
+<view class="login-page">
+  <view class="login-card card">
+    <view class="brand">
+      <view class="logo">班</view>
+      <view>
+        <view class="title">门店排班</view>
+        <view class="muted">微信小程序端 · 与 Web 共用同一后端</view>
+      </view>
+    </view>
+
+    <view class="field">
+      <view class="label">用户名</view>
+      <input class="input" placeholder="请输入用户名" value="{{username}}" bindinput="onUsername" />
+    </view>
+    <view class="field">
+      <view class="label">密码</view>
+      <input class="input" password placeholder="请输入密码" value="{{password}}" bindinput="onPassword" confirm-type="done" bindconfirm="onSubmit" />
+    </view>
+
+    <button class="btn-primary submit" loading="{{loading}}" bindtap="onSubmit">登录</button>
+
+    <view class="tips muted">
+      演示账号：manager / staff1 / staff2 / staff3，密码均为 123456
+    </view>
+
+    <view class="api-box">
+      <view class="label">后端地址</view>
+      <input class="input" value="{{apiBaseUrl}}" bindinput="onApiBase" placeholder="http://127.0.0.1:3000" />
+      <view class="muted tiny">真机调试请填写电脑局域网 IP，并在开发者工具关闭域名校验</view>
+    </view>
+  </view>
+</view>

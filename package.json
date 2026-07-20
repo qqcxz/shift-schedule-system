@@ -3,14 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "workspaces": [
-    "apps/*"
+    "apps/server",
+    "apps/web"
   ],
   "scripts": {
     "build": "npm run build -w @shift/server && npm run build -w @shift/web",
     "dev": "concurrently -n server,web -c blue,green \"npm run dev -w @shift/server\" \"npm run dev -w @shift/web\"",
     "start:server": "npm run start:prod -w @shift/server",
     "dev:web": "npm run dev -w @shift/web",
-    "dev:server": "npm run dev -w @shift/server"
+    "dev:server": "npm run dev -w @shift/server",
+    "dev:mini": "node -e \"console.log('\\n请用微信开发者工具打开目录: apps/miniprogram\\n并先启动后端: npm run dev:server\\n')\""
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

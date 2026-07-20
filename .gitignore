@@ -18,3 +18,7 @@ npm-install.log
 
 .tools/
 
+
+upload-to-github.*
+push-out.log
+

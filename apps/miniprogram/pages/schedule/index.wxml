@@ -1,0 +1,63 @@
+<view class="page">
+  <view class="card toolbar">
+    <view class="row between">
+      <view class="row gap">
+        <button size="mini" class="btn-ghost" bindtap="prevMonth">上月</button>
+        <view class="month">{{month}}</view>
+        <button size="mini" class="btn-ghost" bindtap="nextMonth">下月</button>
+      </view>
+      <view class="row gap">
+        <button size="mini" bindtap="loadAll" loading="{{loading}}">刷新</button>
+        <button wx:if="{{isManager}}" size="mini" class="btn-primary" bindtap="saveAll" loading="{{saving}}">保存</button>
+      </view>
+    </view>
+    <view class="muted tip">{{isManager ? '点击班次可循环切换，改完后点保存' : '可查看全店排班，到“申请”页提交调休/调班'}}</view>
+    <view class="user-bar row between">
+      <view>
+        <text class="strong">{{userName}}</text>
+        <text class="tag {{isManager ? 'tag-warning' : 'tag-success'}}">{{isManager ? '店长' : '店员'}}</text>
+      </view>
+      <text class="link" bindtap="onLogout">退出</text>
+    </view>
+  </view>
+
+  <view class="card legend">
+    <block wx:for="{{shifts}}" wx:key="id">
+      <view class="legend-item">
+        <view class="shift-chip" style="background: {{item.color}};">{{item.name}}</view>
+        <text class="muted">{{item.isOff ? '休息' : item.startTime + '-' + item.endTime}}</text>
+      </view>
+    </block>
+  </view>
+
+  <scroll-view scroll-x class="table-scroll">
+    <view class="table">
+      <view class="tr head">
+        <view class="th sticky">员工</view>
+        <view wx:for="{{days}}" wx:key="*this" class="th {{item.weekend ? 'weekend' : ''}}">
+          <view>{{item.dayLabel}}</view>
+          <view class="weekday">{{item.weekday}}</view>
+        </view>
+      </view>
+
+      <view wx:for="{{rows}}" wx:key="userId" class="tr">
+        <view class="td sticky user-cell">
+          <view class="user-name">{{item.displayName}}</view>
+          <view class="muted">{{item.roleLabel}}</view>
+        </view>
+        <view
+          wx:for="{{item.cells}}"
+          wx:for-item="cell"
+          wx:key="workDate"
+          class="td {{cell.weekend ? 'weekend' : ''}} {{isManager ? 'editable' : ''}}"
+          data-user-id="{{item.userId}}"
+          data-day="{{cell.workDate}}"
+          bindtap="onCellTap"
+        >
+          <view wx:if="{{cell.shiftName}}" class="shift-chip" style="background: {{cell.shiftColor}};">{{cell.shiftName}}</view>
+          <text wx:else class="muted">-</text>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+</view>

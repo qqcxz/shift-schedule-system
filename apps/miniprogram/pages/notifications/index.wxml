@@ -1,0 +1,27 @@
+<view class="page">
+  <view class="card toolbar">
+    <view class="row between">
+      <view>
+        <view class="title">消息中心</view>
+        <view class="muted tip">申请结果、排班变更通知会在这里汇总</view>
+      </view>
+      <view class="row gap">
+        <button size="mini" bindtap="load" loading="{{loading}}">刷新</button>
+        <button size="mini" class="btn-primary" bindtap="markAll">全部已读</button>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{!loading && !items.length}}" class="empty card">暂无消息</view>
+
+  <block wx:for="{{items}}" wx:key="id">
+    <view class="card item {{item.isRead ? '' : 'unread'}}" data-id="{{item.id}}" data-read="{{item.isRead}}" bindtap="markOne">
+      <view class="row between">
+        <view class="item-title">{{item.title}}</view>
+        <text wx:if="{{!item.isRead}}" class="tag tag-danger">未读</text>
+      </view>
+      <view class="item-content">{{item.content}}</view>
+      <view class="muted tiny">{{item.createdAtText}}</view>
+    </view>
+  </block>
+</view>

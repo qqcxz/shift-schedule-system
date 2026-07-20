@@ -18,7 +18,7 @@ type AuthPayload = {
 
 @WebSocketGateway({
   cors: {
-    origin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',').map((item) => item.trim()),
+    origin: true,
     credentials: true,
   },
 })
@@ -70,3 +70,4 @@ export class RealtimeGateway implements OnGatewayConnection {
     this.server?.to(`user:${userId}`).emit(event, payload);
   }
 }
+

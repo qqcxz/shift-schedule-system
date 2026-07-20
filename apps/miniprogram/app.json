@@ -1,0 +1,44 @@
+{
+  "pages": [
+    "pages/login/index",
+    "pages/schedule/index",
+    "pages/requests/index",
+    "pages/notifications/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "门店排班",
+    "navigationBarBackgroundColor": "#111827",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f3f4f6",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#9ca3af",
+    "selectedColor": "#2563eb",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/schedule/index",
+        "text": "排班表",
+        "iconPath": "assets/schedule.png",
+        "selectedIconPath": "assets/schedule-active.png"
+      },
+      {
+        "pagePath": "pages/requests/index",
+        "text": "申请",
+        "iconPath": "assets/request.png",
+        "selectedIconPath": "assets/request-active.png"
+      },
+      {
+        "pagePath": "pages/notifications/index",
+        "text": "消息",
+        "iconPath": "assets/notice.png",
+        "selectedIconPath": "assets/notice-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}
