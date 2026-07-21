@@ -342,6 +342,14 @@ docker run -d \
 
 宝塔逐步说明见：`deploy/BAOTA.md`。
 
+也可直接使用已发布镜像（需仓库 Packages 设为 Public）：
+
+```bash
+docker pull ghcr.io/qqcxz/shift-schedule-system:latest
+```
+
+宝塔手动创建时，镜像栏填：`ghcr.io/qqcxz/shift-schedule-system:latest`。
+
 ### 方式二：Docker Compose（多容器）
 
 项目也提供 `docker-compose.yml`，包含：

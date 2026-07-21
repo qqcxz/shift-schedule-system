@@ -116,3 +116,16 @@ SEED_ON_BOOT=true
 
 宝塔网站 → 反向代理到 `http://127.0.0.1:3000`  
 申请 SSL 后，把 `CORS_ORIGIN` 改成 `https://你的域名` 并重启容器。
+
+
+## 八、直接使用已发布镜像（可选）
+
+若 GitHub Actions 已构建并推送镜像，可跳过本机 `docker build`，在宝塔「镜像」栏直接填：
+
+```text
+ghcr.io/qqcxz/shift-schedule-system:latest
+```
+
+首次公开拉取前，请到 GitHub 仓库 → Packages 将 `shift-schedule-system` 设为 **Public**。
+
+然后容器环境变量仍按上文填写（数据库等配置不变）。
