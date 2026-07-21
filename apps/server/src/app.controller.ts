@@ -17,10 +17,10 @@ export class AppController {
         notifications: 'GET /api/notifications',
       },
       clients: {
-        web: 'http://localhost:5173',
+        web: '同端口静态页面（生产）或 http://localhost:5173（开发）',
         miniprogram: 'apps/miniprogram (微信开发者工具打开)',
       },
-      frontend: 'http://localhost:5173',
+      frontend: '生产环境由本服务托管前端静态资源',
       time: new Date().toISOString(),
     };
   }

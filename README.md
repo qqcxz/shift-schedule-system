@@ -89,8 +89,10 @@
 │     ├─ services/            # API 封装
 │     └─ utils/               # 鉴权、请求、实时
 ├─ deploy/
-│  └─ nginx.conf              # 生产反向代理与 WebSocket 转发
-├─ docker-compose.yml
+│  ├─ nginx.conf              # 多容器时 Nginx 反代配置
+│  └─ BAOTA.md                # 宝塔「手动创建」单容器部署步骤
+├─ Dockerfile                 # 单容器镜像（前端 + 后端）
+├─ docker-compose.yml         # 可选：多容器部署
 ├─ package.json               # monorepo workspaces
 └─ README.md
 ```
@@ -304,16 +306,50 @@ io('/', {
 
 ## 生产部署
 
-### 方式一：Docker Compose（推荐）
+### 方式一：单容器（推荐，适合宝塔「手动创建」）
 
-项目已提供 `docker-compose.yml`，包含：
+项目根目录提供 `Dockerfile`，把前端静态资源和后端 API 打进 **同一个镜像**。  
+宝塔面板只需创建一个容器，无需容器编排。
+
+```bash
+# 1. 构建镜像
+docker build -t shift-schedule:latest .
+
+# 2. 运行（数据库用宝塔本机 MySQL 时）
+docker run -d \
+  --name shift-schedule \
+  --restart unless-stopped \
+  -p 3000:3000 \
+  --add-host=host.docker.internal:host-gateway \
+  -e PORT=3000 \
+  -e DB_TYPE=mysql \
+  -e DB_HOST=172.17.0.1 \
+  -e DB_PORT=3306 \
+  -e DB_USER=shift \
+  -e DB_PASSWORD=你的密码 \
+  -e DB_NAME=shift_schedule \
+  -e JWT_SECRET=请换成强随机字符串 \
+  -e CORS_ORIGIN=http://你的服务器IP:3000 \
+  -e SEED_ON_BOOT=true \
+  shift-schedule:latest
+```
+
+访问：
+
+- 页面：http://服务器IP:3000
+- API：http://服务器IP:3000/api
+- 健康检查：http://服务器IP:3000/api/health
+
+宝塔逐步说明见：`deploy/BAOTA.md`。
+
+### 方式二：Docker Compose（多容器）
+
+项目也提供 `docker-compose.yml`，包含：
 
 - `mysql`
 - `redis`（预留）
 - `server`（NestJS）
 - `web`（Nginx + 前端静态资源）
-
-启动：
 
 ```bash
 docker compose up -d --build
@@ -330,40 +366,36 @@ docker compose up -d --build
 ```env
 PORT=3000
 DB_TYPE=mysql
-DB_HOST=mysql
+DB_HOST=172.17.0.1
 DB_PORT=3306
 DB_USER=shift
-DB_PASSWORD=shift123
+DB_PASSWORD=你的密码
 DB_NAME=shift_schedule
 JWT_SECRET=请换成强随机字符串
-CORS_ORIGIN=https://your-domain.com
+CORS_ORIGIN=http://你的服务器IP:3000
 SEED_ON_BOOT=true
 ```
 
 建议上线前：
 
 1. 修改默认密码和 `JWT_SECRET`
-2. 配置 HTTPS（可用 Nginx / Caddy / 云负载均衡）
-3. 关闭或限制演示账号
-4. 定期备份 MySQL 数据卷
+2. 配置 HTTPS（可用宝塔网站反代 / Nginx / Caddy）
+3. 关闭或限制演示账号（`SEED_ON_BOOT=false`）
+4. 定期备份 MySQL
 
-### 方式二：手动部署
+### 方式三：纯手动部署（不用 Docker）
 
 ```bash
 # 构建
 npm run build
 
-# 启动后端
-npm run start:server
+# 启动后端（会同时托管 apps/web/dist 静态资源）
+WEB_DIST=apps/web/dist npm run start:server
 
-# 前端产物在 apps/web/dist
-# 用 Nginx 托管静态资源，并将 /api 与 /socket.io 反代到后端
+# 也可继续用 Nginx 托管静态资源，并将 /api 与 /socket.io 反代到后端
 ```
 
 可参考 `deploy/nginx.conf`。
-
----
-
 ## 业务规则说明
 
 - 只有店长可以正式修改排班

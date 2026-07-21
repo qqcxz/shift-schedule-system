@@ -1,5 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { NextFunction, Request, Response } from 'express';
+import { existsSync } from 'fs';
+import { join } from 'path';
 import { AppModule } from './app.module';
 
 function resolveCorsOrigin() {
@@ -38,8 +42,20 @@ function resolveCorsOrigin() {
   };
 }
 
+function resolveWebDist() {
+  const candidates = [
+    process.env.WEB_DIST,
+    join(__dirname, '..', '..', 'web', 'dist'),
+    join(__dirname, '..', 'public'),
+    join(process.cwd(), 'public'),
+    '/app/public',
+  ].filter(Boolean) as string[];
+
+  return candidates.find((dir) => existsSync(join(dir, 'index.html')));
+}
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
     new ValidationPipe({
@@ -54,10 +70,44 @@ async function bootstrap() {
     credentials: true,
   });
 
+  const webDist = resolveWebDist();
+  if (webDist) {
+    app.useStaticAssets(webDist, {
+      index: false,
+    });
+
+    // SPA fallback：API / WebSocket 之外的 GET 请求回退到前端
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        next();
+        return;
+      }
+
+      const path = req.path || '';
+      if (
+        path.startsWith('/api') ||
+        path.startsWith('/socket.io') ||
+        path.includes('.')
+      ) {
+        next();
+        return;
+      }
+
+      res.sendFile(join(webDist, 'index.html'), (err?: Error) => {
+        if (err) next(err);
+      });
+    });
+
+    // eslint-disable-next-line no-console
+    console.log(`Serving web UI from ${webDist}`);
+  }
+
   const port = Number(process.env.PORT || 3000);
   await app.listen(port, '0.0.0.0');
   // eslint-disable-next-line no-console
-  console.log(`API running on http://0.0.0.0:${port}/api`);
+  console.log(`App running on http://0.0.0.0:${port}`);
+  // eslint-disable-next-line no-console
+  console.log(`API: http://0.0.0.0:${port}/api`);
 }
 
 bootstrap();
