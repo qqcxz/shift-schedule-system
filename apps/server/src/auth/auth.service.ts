@@ -1,8 +1,9 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -33,5 +34,20 @@ export class AuthService {
       accessToken: token,
       user: this.usersService.sanitize(user),
     };
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    if (dto.currentPassword === dto.newPassword) {
+      throw new BadRequestException('新密码不能与当前密码相同');
+    }
+
+    const user = await this.usersService.findById(userId);
+    const matched = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!matched) {
+      throw new BadRequestException('当前密码不正确');
+    }
+
+    await this.usersService.updatePassword(userId, dto.newPassword);
+    return { ok: true };
   }
 }

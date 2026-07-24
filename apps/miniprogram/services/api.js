@@ -13,6 +13,14 @@ function me() {
   return request({ url: '/auth/me' });
 }
 
+function changePassword(payload) {
+  return request({
+    url: '/auth/change-password',
+    method: 'POST',
+    data: payload,
+  });
+}
+
 function users(includeInactive) {
   return request({
     url: '/users',
@@ -99,6 +107,7 @@ function markAllNotificationsRead() {
 module.exports = {
   login,
   me,
+  changePassword,
   users,
   createUser,
   updateUser,

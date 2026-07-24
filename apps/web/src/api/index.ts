@@ -62,6 +62,10 @@ export const loginApi = (username: string, password: string) =>
   http.post<{ accessToken: string; user: User }>('/auth/login', { username, password });
 
 export const meApi = () => http.get<User>('/auth/me');
+export const changePasswordApi = (payload: {
+  currentPassword: string;
+  newPassword: string;
+}) => http.post<{ ok: boolean }>('/auth/change-password', payload);
 export const usersApi = (includeInactive = false) =>
   http.get<User[]>('/users', {
     params: includeInactive ? { includeInactive: '1' } : undefined,

@@ -37,6 +37,13 @@ export class UsersService {
     });
   }
 
+  async updatePassword(userId: string, newPassword: string) {
+    const user = await this.findById(userId);
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.usersRepo.save(user);
+    return this.sanitize(user);
+  }
+
   sanitize(user: User) {
     return {
       id: user.id,

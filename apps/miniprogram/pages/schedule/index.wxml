@@ -17,7 +17,10 @@
         <text class="strong">{{userName}}</text>
         <text class="tag {{isManager ? 'tag-warning' : 'tag-success'}}">{{isManager ? '店长' : '店员'}}</text>
       </view>
-      <text class="link" bindtap="onLogout">退出</text>
+      <view class="row gap">
+        <text class="link" bindtap="openPassword">改密</text>
+        <text class="link" bindtap="onLogout">退出</text>
+      </view>
     </view>
   </view>
 
@@ -73,5 +76,26 @@
       </view>
     </view>
   </scroll-view>
-</view>
 
+  <view wx:if="{{showPassword}}" class="mask" bindtap="closePassword">
+    <view class="dialog card" catchtap="noop">
+      <view class="dialog-title">修改密码</view>
+      <view class="field">
+        <view class="label">当前密码</view>
+        <input class="input" password value="{{passwordForm.currentPassword}}" bindinput="onCurrentPassword" placeholder="请输入当前密码" />
+      </view>
+      <view class="field">
+        <view class="label">新密码</view>
+        <input class="input" password value="{{passwordForm.newPassword}}" bindinput="onNewPassword" placeholder="至少 6 位" />
+      </view>
+      <view class="field">
+        <view class="label">确认密码</view>
+        <input class="input" password value="{{passwordForm.confirmPassword}}" bindinput="onConfirmPassword" placeholder="再次输入新密码" />
+      </view>
+      <view class="actions row gap">
+        <button size="mini" bindtap="closePassword">取消</button>
+        <button size="mini" class="btn-primary" loading="{{passwordSaving}}" bindtap="onChangePassword">保存</button>
+      </view>
+    </view>
+  </view>
+</view>

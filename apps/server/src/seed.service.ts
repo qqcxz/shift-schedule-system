@@ -10,7 +10,7 @@ import { ShiftTemplate } from './shifts/shift-template.entity';
 import { Schedule } from './schedules/schedule.entity';
 
 const DEFAULT_MANAGER_USERNAME = 'qqcxz';
-const DEFAULT_MANAGER_PASSWORD = '200395ljf';
+const DEFAULT_MANAGER_PASSWORD = '123456';
 const DEFAULT_MANAGER_DISPLAY_NAME = '店长';
 const LEGACY_MANAGER_USERNAME = 'manager';
 
@@ -149,14 +149,25 @@ export class SeedService {
   }
 
   /**
-   * 兼容旧库：仅当仍存在默认 manager 账号时，迁移为 qqcxz 并设置默认密码。
-   * 不会在每次启动时强制覆盖已有 qqcxz 密码。
+   * 兼容旧库：
+   * 1) manager -> qqcxz
+   * 2) 若仍是旧默认密码 200395ljf，则改为 123456
+   * 不会覆盖用户后续自行修改后的密码。
    */
   private async migrateLegacyManagerIfNeeded() {
+    const oldDefaultPassword = '200395ljf';
     const current = await this.usersRepo.findOne({
       where: { username: DEFAULT_MANAGER_USERNAME },
     });
+
     if (current) {
+      const stillOldDefault = await bcrypt.compare(oldDefaultPassword, current.passwordHash);
+      if (stillOldDefault) {
+        current.passwordHash = await bcrypt.hash(DEFAULT_MANAGER_PASSWORD, 10);
+        await this.usersRepo.save(current);
+        // eslint-disable-next-line no-console
+        console.log(`Default manager password upgraded to ${DEFAULT_MANAGER_PASSWORD}`);
+      }
       return;
     }
 

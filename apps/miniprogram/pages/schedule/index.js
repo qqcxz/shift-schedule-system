@@ -13,6 +13,13 @@ Page({
     shifts: [],
     days: [],
     rows: [],
+    showPassword: false,
+    passwordSaving: false,
+    passwordForm: {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    },
   },
 
   drafts: {},
@@ -64,6 +71,73 @@ Page({
   goStaff() {
     wx.navigateTo({ url: '/pages/staff/index' });
   },
+
+  openPassword() {
+    this.setData({
+      showPassword: true,
+      passwordForm: {
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      },
+    });
+  },
+
+  closePassword() {
+    this.setData({ showPassword: false });
+  },
+
+  noop() {},
+
+  onCurrentPassword(e) {
+    this.setData({ 'passwordForm.currentPassword': e.detail.value });
+  },
+
+  onNewPassword(e) {
+    this.setData({ 'passwordForm.newPassword': e.detail.value });
+  },
+
+  onConfirmPassword(e) {
+    this.setData({ 'passwordForm.confirmPassword': e.detail.value });
+  },
+
+  async onChangePassword() {
+    const { passwordForm, passwordSaving } = this.data;
+    if (passwordSaving) return;
+    if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+      wx.showToast({ title: '请填写完整密码', icon: 'none' });
+      return;
+    }
+    if (String(passwordForm.newPassword).length < 6) {
+      wx.showToast({ title: '新密码至少 6 位', icon: 'none' });
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      wx.showToast({ title: '两次新密码不一致', icon: 'none' });
+      return;
+    }
+
+    this.setData({ passwordSaving: true });
+    try {
+      await api.changePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+      wx.showToast({ title: '密码已修改', icon: 'success' });
+      this.setData({ showPassword: false });
+      setTimeout(() => {
+        clearAuth();
+        const app = getApp();
+        if (app && app.setAuth) app.setAuth('', null);
+        wx.reLaunch({ url: '/pages/login/index' });
+      }, 400);
+    } catch (e) {
+      // toast already shown
+    } finally {
+      this.setData({ passwordSaving: false });
+    }
+  },
+
 
   prevMonth() {
     this.setData({ month: shiftMonth(this.data.month, -1) });
