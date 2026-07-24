@@ -6,6 +6,8 @@
         <el-menu-item index="/schedule">排班表</el-menu-item>
         <el-menu-item index="/requests">申请审批</el-menu-item>
         <el-menu-item index="/notifications">消息中心</el-menu-item>
+        <el-menu-item v-if="auth.isManager" index="/shifts">班次管理</el-menu-item>
+        <el-menu-item v-if="auth.isManager" index="/staff">员工管理</el-menu-item>
       </el-menu>
     </aside>
 
@@ -44,6 +46,8 @@ const storeName = ref('');
 const pageTitle = computed(() => {
   if (route.path.startsWith('/requests')) return '申请与审批';
   if (route.path.startsWith('/notifications')) return '消息中心';
+  if (route.path.startsWith('/shifts')) return '班次管理';
+  if (route.path.startsWith('/staff')) return '员工管理';
   return '月度排班表';
 });
 

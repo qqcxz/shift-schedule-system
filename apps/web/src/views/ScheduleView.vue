@@ -222,6 +222,12 @@ onMounted(async () => {
         loadAll();
       }
     }),
+    onRealtime('shifts.updated', () => {
+      loadAll();
+    }),
+    onRealtime('users.updated', () => {
+      loadAll();
+    }),
   ];
 });
 
@@ -321,3 +327,4 @@ onUnmounted(() => {
   font-weight: 400;
 }
 </style>
+

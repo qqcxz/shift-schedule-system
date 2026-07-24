@@ -1,0 +1,85 @@
+.toolbar {
+  margin-bottom: 20rpx;
+}
+
+.title {
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.item {
+  margin-bottom: 16rpx;
+}
+
+.strong {
+  font-weight: 700;
+}
+
+.meta {
+  margin-top: 14rpx;
+  line-height: 1.7;
+  color: #374151;
+  font-size: 26rpx;
+}
+
+.actions {
+  margin-top: 18rpx;
+}
+
+.tiny {
+  font-size: 22rpx;
+}
+
+.mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: flex-end;
+  z-index: 20;
+}
+
+.dialog {
+  width: 100%;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  max-height: 85vh;
+  overflow: auto;
+}
+
+.dialog-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  margin-bottom: 20rpx;
+}
+
+.field {
+  margin-bottom: 20rpx;
+}
+
+.label {
+  margin-bottom: 10rpx;
+  color: #6b7280;
+  font-size: 24rpx;
+}
+
+.input,
+.picker {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 14rpx;
+  padding: 18rpx 20rpx;
+}
+
+.color-preview {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  margin-right: 12rpx;
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}

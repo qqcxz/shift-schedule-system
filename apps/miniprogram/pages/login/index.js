@@ -3,8 +3,8 @@ const { setAuth, getToken, getUser } = require('../../utils/auth');
 
 Page({
   data: {
-    username: 'manager',
-    password: '123456',
+    username: '',
+    password: '',
     loading: false,
     apiBaseUrl: 'http://127.0.0.1:3000',
   },
@@ -58,7 +58,7 @@ Page({
 
     this.setData({ loading: true });
     try {
-      const data = await api.login(username, password);
+      const data = await api.login(String(username).trim(), password);
       setAuth(data.accessToken, data.user);
       if (app && app.setAuth) {
         app.setAuth(data.accessToken, data.user);
@@ -74,4 +74,3 @@ Page({
     }
   },
 });
-

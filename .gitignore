@@ -22,3 +22,6 @@ npm-install.log
 upload-to-github.*
 push-out.log
 
+
+apps/miniprogram/project.private.config.json
+

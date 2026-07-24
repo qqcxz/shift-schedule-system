@@ -21,6 +21,19 @@
     </view>
   </view>
 
+  <view wx:if="{{isManager}}" class="card manage-entry">
+    <view class="row between">
+      <view>
+        <view class="strong">门店设置</view>
+        <view class="muted tiny">调整班次时间、管理员工账号</view>
+      </view>
+      <view class="row gap">
+        <button size="mini" class="btn-ghost" bindtap="goShifts">班次管理</button>
+        <button size="mini" class="btn-ghost" bindtap="goStaff">员工管理</button>
+      </view>
+    </view>
+  </view>
+
   <view class="card legend">
     <block wx:for="{{shifts}}" wx:key="id">
       <view class="legend-item">
@@ -61,3 +74,4 @@
     </view>
   </scroll-view>
 </view>
+

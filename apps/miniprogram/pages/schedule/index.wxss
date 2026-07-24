@@ -114,3 +114,11 @@
   color: #9ca3af;
   font-size: 20rpx;
 }
+
+.manage-entry {
+  margin-bottom: 20rpx;
+}
+
+.tiny {
+  font-size: 22rpx;
+}

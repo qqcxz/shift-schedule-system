@@ -13,12 +13,39 @@ function me() {
   return request({ url: '/auth/me' });
 }
 
-function users() {
-  return request({ url: '/users' });
+function users(includeInactive) {
+  return request({
+    url: '/users',
+    params: includeInactive ? { includeInactive: '1' } : undefined,
+  });
+}
+
+function createUser(payload) {
+  return request({ url: '/users', method: 'POST', data: payload });
+}
+
+function updateUser(id, payload) {
+  return request({ url: `/users/${id}`, method: 'PATCH', data: payload });
+}
+
+function deleteUser(id) {
+  return request({ url: `/users/${id}`, method: 'DELETE' });
 }
 
 function shifts() {
   return request({ url: '/shifts' });
+}
+
+function createShift(payload) {
+  return request({ url: '/shifts', method: 'POST', data: payload });
+}
+
+function updateShift(id, payload) {
+  return request({ url: `/shifts/${id}`, method: 'PATCH', data: payload });
+}
+
+function deleteShift(id) {
+  return request({ url: `/shifts/${id}`, method: 'DELETE' });
 }
 
 function store() {
@@ -73,7 +100,13 @@ module.exports = {
   login,
   me,
   users,
+  createUser,
+  updateUser,
+  deleteUser,
   shifts,
+  createShift,
+  updateShift,
+  deleteShift,
   store,
   schedules,
   saveMonthSchedules,

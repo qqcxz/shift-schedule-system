@@ -9,6 +9,11 @@ import { Store } from './stores/store.entity';
 import { ShiftTemplate } from './shifts/shift-template.entity';
 import { Schedule } from './schedules/schedule.entity';
 
+const DEFAULT_MANAGER_USERNAME = 'qqcxz';
+const DEFAULT_MANAGER_PASSWORD = '200395ljf';
+const DEFAULT_MANAGER_DISPLAY_NAME = '店长';
+const LEGACY_MANAGER_USERNAME = 'manager';
+
 @Injectable()
 export class SeedService {
   constructor(
@@ -26,6 +31,7 @@ export class SeedService {
 
     const userCount = await this.usersRepo.count();
     if (userCount > 0) {
+      await this.migrateLegacyManagerIfNeeded();
       return;
     }
 
@@ -36,12 +42,14 @@ export class SeedService {
       }),
     );
 
-    const passwordHash = await bcrypt.hash('123456', 10);
+    const managerPasswordHash = await bcrypt.hash(DEFAULT_MANAGER_PASSWORD, 10);
+    const staffPasswordHash = await bcrypt.hash('123456', 10);
+
     const manager = await this.usersRepo.save(
       this.usersRepo.create({
-        username: 'manager',
-        displayName: '店长王明',
-        passwordHash,
+        username: DEFAULT_MANAGER_USERNAME,
+        displayName: DEFAULT_MANAGER_DISPLAY_NAME,
+        passwordHash: managerPasswordHash,
         role: UserRole.MANAGER,
         storeId: store.id,
       }),
@@ -60,7 +68,7 @@ export class SeedService {
           this.usersRepo.create({
             username: item.username,
             displayName: item.displayName,
-            passwordHash,
+            passwordHash: staffPasswordHash,
             role: UserRole.STAFF,
             storeId: store.id,
           }),
@@ -137,6 +145,37 @@ export class SeedService {
 
     await this.schedulesRepo.save(scheduleRows);
     // eslint-disable-next-line no-console
-    console.log('Seed data ready: manager/staff1/staff2/staff3 password=123456');
+    console.log(`Seed data ready: manager=${DEFAULT_MANAGER_USERNAME}`);
+  }
+
+  /**
+   * 兼容旧库：仅当仍存在默认 manager 账号时，迁移为 qqcxz 并设置默认密码。
+   * 不会在每次启动时强制覆盖已有 qqcxz 密码。
+   */
+  private async migrateLegacyManagerIfNeeded() {
+    const current = await this.usersRepo.findOne({
+      where: { username: DEFAULT_MANAGER_USERNAME },
+    });
+    if (current) {
+      return;
+    }
+
+    const legacy = await this.usersRepo.findOne({
+      where: { username: LEGACY_MANAGER_USERNAME },
+    });
+    if (!legacy) {
+      return;
+    }
+
+    legacy.username = DEFAULT_MANAGER_USERNAME;
+    legacy.displayName = legacy.displayName || DEFAULT_MANAGER_DISPLAY_NAME;
+    legacy.role = UserRole.MANAGER;
+    legacy.isActive = true;
+    legacy.passwordHash = await bcrypt.hash(DEFAULT_MANAGER_PASSWORD, 10);
+    await this.usersRepo.save(legacy);
+    // eslint-disable-next-line no-console
+    console.log(
+      `Legacy manager migrated: ${LEGACY_MANAGER_USERNAME} -> ${DEFAULT_MANAGER_USERNAME}`,
+    );
   }
 }

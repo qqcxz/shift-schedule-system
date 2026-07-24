@@ -44,6 +44,8 @@ Page({
           this.loadAll();
         }
       }),
+      onRealtime('shifts.updated', () => this.loadAll()),
+      onRealtime('users.updated', () => this.loadAll()),
     ];
   },
 
@@ -53,6 +55,14 @@ Page({
 
   onPullDownRefresh() {
     this.loadAll().finally(() => wx.stopPullDownRefresh());
+  },
+
+  goShifts() {
+    wx.navigateTo({ url: '/pages/shifts/index' });
+  },
+
+  goStaff() {
+    wx.navigateTo({ url: '/pages/staff/index' });
   },
 
   prevMonth() {
@@ -197,3 +207,4 @@ Page({
     }
   },
 });
+

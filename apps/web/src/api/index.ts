@@ -6,6 +6,7 @@ export type User = {
   displayName: string;
   role: 'manager' | 'staff';
   storeId: string;
+  isActive?: boolean;
 };
 
 export type ShiftTemplate = {
@@ -15,6 +16,7 @@ export type ShiftTemplate = {
   startTime: string;
   endTime: string;
   color: string;
+  sortOrder?: number;
   isOff: boolean;
 };
 
@@ -60,8 +62,52 @@ export const loginApi = (username: string, password: string) =>
   http.post<{ accessToken: string; user: User }>('/auth/login', { username, password });
 
 export const meApi = () => http.get<User>('/auth/me');
-export const usersApi = () => http.get<User[]>('/users');
+export const usersApi = (includeInactive = false) =>
+  http.get<User[]>('/users', {
+    params: includeInactive ? { includeInactive: '1' } : undefined,
+  });
+export const createUserApi = (payload: {
+  username: string;
+  displayName: string;
+  password: string;
+  role?: 'manager' | 'staff';
+}) => http.post<User>('/users', payload);
+export const updateUserApi = (
+  id: string,
+  payload: {
+    username?: string;
+    displayName?: string;
+    password?: string;
+    role?: 'manager' | 'staff';
+    isActive?: boolean;
+  },
+) => http.patch<User>(`/users/${id}`, payload);
+export const deleteUserApi = (id: string) => http.delete(`/users/${id}`);
+
 export const shiftsApi = () => http.get<ShiftTemplate[]>('/shifts');
+export const createShiftApi = (payload: {
+  name: string;
+  code?: string;
+  startTime: string;
+  endTime: string;
+  color?: string;
+  sortOrder?: number;
+  isOff?: boolean;
+}) => http.post<ShiftTemplate>('/shifts', payload);
+export const updateShiftApi = (
+  id: string,
+  payload: {
+    name?: string;
+    code?: string;
+    startTime?: string;
+    endTime?: string;
+    color?: string;
+    sortOrder?: number;
+    isOff?: boolean;
+  },
+) => http.patch<ShiftTemplate>(`/shifts/${id}`, payload);
+export const deleteShiftApi = (id: string) => http.delete(`/shifts/${id}`);
+
 export const storeApi = () => http.get<{ id: string; name: string; address?: string }>('/stores/current');
 export const schedulesApi = (month: string) =>
   http.get<{ month: string; items: ScheduleItem[] }>('/schedules', { params: { month } });

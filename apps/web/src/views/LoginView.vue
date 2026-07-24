@@ -11,19 +11,23 @@
 
       <el-form :model="form" @submit.prevent>
         <el-form-item label="用户名">
-          <el-input v-model="form.username" placeholder="manager / staff1" size="large" />
+          <el-input v-model="form.username" placeholder="请输入用户名" size="large" autocomplete="username" />
         </el-form-item>
         <el-form-item label="密码">
-          <el-input v-model="form.password" type="password" show-password size="large" @keyup.enter="onSubmit" />
+          <el-input
+            v-model="form.password"
+            type="password"
+            show-password
+            size="large"
+            placeholder="请输入密码"
+            autocomplete="current-password"
+            @keyup.enter="onSubmit"
+          />
         </el-form-item>
         <el-button type="primary" size="large" style="width: 100%" :loading="loading" @click="onSubmit">
           登录
         </el-button>
       </el-form>
-
-      <div class="tips muted">
-        演示账号：manager / staff1 / staff2 / staff3，密码均为 123456
-      </div>
     </div>
   </div>
 </template>
@@ -38,14 +42,19 @@ const auth = useAuthStore();
 const router = useRouter();
 const loading = ref(false);
 const form = reactive({
-  username: 'manager',
-  password: '123456',
+  username: '',
+  password: '',
 });
 
 async function onSubmit() {
+  if (!form.username.trim() || !form.password) {
+    ElMessage.warning('请输入用户名和密码');
+    return;
+  }
+
   loading.value = true;
   try {
-    await auth.login(form.username, form.password);
+    await auth.login(form.username.trim(), form.password);
     ElMessage.success('登录成功');
     router.push('/schedule');
   } catch (error) {
@@ -98,11 +107,5 @@ async function onSubmit() {
   font-size: 24px;
   font-weight: 700;
   background: linear-gradient(135deg, #409eff, #67c23a);
-}
-
-.tips {
-  margin-top: 18px;
-  font-size: 13px;
-  line-height: 1.6;
 }
 </style>

@@ -19,10 +19,6 @@
 
     <button class="btn-primary submit" loading="{{loading}}" bindtap="onSubmit">登录</button>
 
-    <view class="tips muted">
-      演示账号：manager / staff1 / staff2 / staff3，密码均为 123456
-    </view>
-
     <view class="api-box">
       <view class="label">后端地址</view>
       <input class="input" value="{{apiBaseUrl}}" bindinput="onApiBase" placeholder="http://127.0.0.1:3000" />

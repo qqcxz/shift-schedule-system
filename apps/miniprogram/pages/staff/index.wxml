@@ -1,0 +1,87 @@
+<view class="page">
+  <view class="card toolbar">
+    <view class="row between">
+      <view>
+        <view class="title">员工管理</view>
+        <view class="muted tiny">可新增员工、修改信息、停用账号</view>
+      </view>
+      <view class="row gap">
+        <button size="mini" bindtap="loadUsers" loading="{{loading}}">刷新</button>
+        <button size="mini" class="btn-primary" bindtap="openCreate">新增</button>
+      </view>
+    </view>
+    <view class="switch-row" style="margin-top: 16rpx;">
+      <text class="muted">显示已停用</text>
+      <switch checked="{{includeInactive}}" bindchange="onIncludeInactive" />
+    </view>
+  </view>
+
+  <view wx:if="{{!loading && !users.length}}" class="empty card">暂无员工</view>
+
+  <block wx:for="{{users}}" wx:key="id">
+    <view class="card item">
+      <view class="row between">
+        <view>
+          <view class="strong">{{item.displayName}}</view>
+          <view class="muted tiny">账号：{{item.username}}</view>
+        </view>
+        <view class="row gap">
+          <text class="tag {{item.role === 'manager' ? 'tag-warning' : 'tag-success'}}">{{item.role === 'manager' ? '店长' : '店员'}}</text>
+          <text class="tag {{item.isActive === false ? 'tag-info' : 'tag-success'}}">{{item.isActive === false ? '已停用' : '在职'}}</text>
+        </view>
+      </view>
+      <view class="actions row gap">
+        <button size="mini" class="btn-ghost" data-id="{{item.id}}" bindtap="openEdit">编辑</button>
+        <button
+          wx:if="{{item.isActive !== false}}"
+          size="mini"
+          data-id="{{item.id}}"
+          data-active="0"
+          bindtap="onToggleActive"
+        >停用</button>
+        <button
+          wx:else
+          size="mini"
+          class="btn-primary"
+          data-id="{{item.id}}"
+          data-active="1"
+          bindtap="onToggleActive"
+        >启用</button>
+        <button size="mini" data-id="{{item.id}}" data-name="{{item.displayName}}" bindtap="onDelete">删除</button>
+      </view>
+    </view>
+  </block>
+
+  <view wx:if="{{showDialog}}" class="mask" bindtap="closeDialog">
+    <view class="dialog card" catchtap="noop">
+      <view class="dialog-title">{{editingId ? '编辑员工' : '新增员工'}}</view>
+
+      <view class="field">
+        <view class="label">姓名</view>
+        <input class="input" value="{{form.displayName}}" bindinput="onDisplayName" placeholder="例如：店员小王" />
+      </view>
+
+      <view class="field">
+        <view class="label">登录账号</view>
+        <input class="input" value="{{form.username}}" bindinput="onUsername" placeholder="例如：staff4" />
+      </view>
+
+      <view class="field">
+        <view class="label">{{editingId ? '新密码（不改请留空）' : '密码'}}</view>
+        <input class="input" password value="{{form.password}}" bindinput="onPassword" placeholder="至少 6 位" />
+      </view>
+
+      <view class="field">
+        <view class="label">角色</view>
+        <picker mode="selector" range="{{roleNames}}" value="{{roleIndex}}" bindchange="onRoleChange">
+          <view class="picker">{{roleNames[roleIndex]}}</view>
+        </picker>
+      </view>
+
+      <view class="actions row gap">
+        <button size="mini" bindtap="closeDialog">取消</button>
+        <button size="mini" class="btn-primary" loading="{{saving}}" bindtap="onSave">保存</button>
+      </view>
+    </view>
+  </view>
+</view>

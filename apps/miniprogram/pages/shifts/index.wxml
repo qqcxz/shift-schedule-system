@@ -1,0 +1,94 @@
+<view class="page">
+  <view class="card toolbar">
+    <view class="row between">
+      <view>
+        <view class="title">班次管理</view>
+        <view class="muted tiny">可修改班次名称、时间、颜色</view>
+      </view>
+      <view class="row gap">
+        <button size="mini" bindtap="loadShifts" loading="{{loading}}">刷新</button>
+        <button size="mini" class="btn-primary" bindtap="openCreate">新增</button>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{!loading && !shifts.length}}" class="empty card">暂无班次</view>
+
+  <block wx:for="{{shifts}}" wx:key="id">
+    <view class="card item">
+      <view class="row between">
+        <view class="row gap">
+          <view class="color-preview" style="background: {{item.color}};"></view>
+          <view>
+            <view class="strong">{{item.name}}</view>
+            <view class="muted tiny">{{item.code}}</view>
+          </view>
+        </view>
+        <text class="tag {{item.isOff ? 'tag-info' : 'tag-success'}}">{{item.isOff ? '休息' : '上班'}}</text>
+      </view>
+      <view class="meta">
+        <view>时间：{{item.isOff ? '休息' : item.startTime + '-' + item.endTime}}</view>
+        <view>排序：{{item.sortOrder}}</view>
+      </view>
+      <view class="actions row gap">
+        <button size="mini" class="btn-ghost" data-id="{{item.id}}" bindtap="openEdit">编辑</button>
+        <button size="mini" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="onDelete">删除</button>
+      </view>
+    </view>
+  </block>
+
+  <view wx:if="{{showDialog}}" class="mask" bindtap="closeDialog">
+    <view class="dialog card" catchtap="noop">
+      <view class="dialog-title">{{editingId ? '编辑班次' : '新增班次'}}</view>
+
+      <view class="field">
+        <view class="label">班次名称</view>
+        <input class="input" value="{{form.name}}" bindinput="onName" placeholder="例如：早班" />
+      </view>
+
+      <view class="field">
+        <view class="label">编码（可选）</view>
+        <input class="input" value="{{form.code}}" bindinput="onCode" placeholder="默认按名称生成" />
+      </view>
+
+      <view class="field switch-row">
+        <view class="label" style="margin-bottom:0">是否休息班</view>
+        <switch checked="{{form.isOff}}" bindchange="onIsOff" />
+      </view>
+
+      <view class="field" wx:if="{{!form.isOff}}">
+        <view class="label">开始时间</view>
+        <picker mode="time" value="{{form.startTime}}" bindchange="onStartTime">
+          <view class="picker">{{form.startTime || '请选择'}}</view>
+        </picker>
+      </view>
+
+      <view class="field" wx:if="{{!form.isOff}}">
+        <view class="label">结束时间</view>
+        <picker mode="time" value="{{form.endTime}}" bindchange="onEndTime">
+          <view class="picker">{{form.endTime || '请选择'}}</view>
+        </picker>
+      </view>
+
+      <view class="field">
+        <view class="label">颜色</view>
+        <picker mode="selector" range="{{colorNames}}" value="{{colorIndex}}" bindchange="onColorChange">
+          <view class="picker row gap">
+            <view class="color-preview" style="background: {{form.color}};"></view>
+            <text>{{colorNames[colorIndex]}}</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="field">
+        <view class="label">排序</view>
+        <input class="input" type="number" value="{{form.sortOrder}}" bindinput="onSortOrder" />
+      </view>
+
+      <view class="actions row gap">
+        <button size="mini" bindtap="closeDialog">取消</button>
+        <button size="mini" class="btn-primary" loading="{{saving}}" bindtap="onSave">保存</button>
+      </view>
+    </view>
+  </view>
+</view>

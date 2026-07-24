@@ -11,6 +11,8 @@
 - 店长审批
 - 消息中心
 - 下拉刷新
+- 店长班次管理
+- 店长员工管理
 
 ## 打开方式
 
@@ -31,9 +33,9 @@ E:\app\apps\miniprogram
 4. AppID 可先用测试号 / 游客模式（`project.config.json` 默认 `touristappid`）
 5. 开发阶段建议：
    - 详情 → 本地设置 → **不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书**
-6. 编译后使用演示账号登录：
-   - `manager / 123456`
-   - `staff1 / 123456`
+6. 编译后使用店长账号登录：
+   - `qqcxz / 200395ljf`
+   - 员工账号由店长在「员工管理」中创建
 
 ## 后端地址配置
 
@@ -83,6 +85,8 @@ apps/miniprogram/
 └─ pages/
    ├─ login/
    ├─ schedule/
+   ├─ shifts/
+   ├─ staff/
    ├─ requests/
    └─ notifications/
 ```
@@ -98,3 +102,5 @@ apps/miniprogram/
 | 实时推送 | Socket.IO Client | 尽力连接 + 页面刷新兜底 |
 
 > 说明：小程序原生 WebSocket 与 Socket.IO 协议不完全兼容。当前已做尽力连接；即使实时通道不可用，页面 `onShow` 与下拉刷新也能保证数据最新。如需完整实时，可后续接入 `weapp.socket.io` 等适配库。
+
+
