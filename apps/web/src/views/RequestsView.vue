@@ -7,51 +7,105 @@
           <p class="muted" style="margin: 6px 0 0">审批通过后排班会自动更新并实时推送</p>
         </div>
         <div class="actions">
-          <el-select v-model="status" clearable placeholder="状态筛选" style="width: 140px" @change="loadRequests">
+          <el-select v-model="status" clearable placeholder="状态筛选" class="status-filter" @change="loadRequests">
             <el-option label="待审批" value="pending" />
             <el-option label="已通过" value="approved" />
             <el-option label="已驳回" value="rejected" />
           </el-select>
           <el-button @click="loadRequests" :loading="loading">刷新</el-button>
+          <el-button @click="clearResolved" :loading="clearing">清理已处理</el-button>
           <el-button v-if="!auth.isManager" type="primary" @click="dialogVisible = true">新建申请</el-button>
         </div>
       </div>
 
-      <el-table :data="requests" stripe v-loading="loading">
-        <el-table-column prop="type" label="类型" width="100">
-          <template #default="{ row }">{{ typeLabel(row.type) }}</template>
-        </el-table-column>
-        <el-table-column label="申请人" min-width="120">
-          <template #default="{ row }">{{ row.requester?.displayName || row.requesterId }}</template>
-        </el-table-column>
-        <el-table-column prop="fromDate" label="日期" width="120" />
-        <el-table-column label="对象/目标" min-width="140">
-          <template #default="{ row }">
-            <span v-if="row.type === 'swap'">{{ row.targetUser?.displayName || row.targetUserId || '-' }}</span>
-            <span v-else-if="row.type === 'change'">{{ shiftName(row.toShiftId) }}</span>
-            <span v-else>休息</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="reason" label="原因" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="statusType(row.status)">{{ statusLabel(row.status) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column v-if="auth.isManager" label="操作" width="180" fixed="right">
-          <template #default="{ row }">
-            <template v-if="row.status === 'pending'">
-              <el-button type="success" link @click="onApprove(row.id)">通过</el-button>
-              <el-button type="danger" link @click="onReject(row.id)">驳回</el-button>
+      <div class="table-scroll desktop-only">
+        <el-table :data="requests" stripe v-loading="loading">
+          <el-table-column prop="type" label="类型" width="100">
+            <template #default="{ row }">{{ typeLabel(row.type) }}</template>
+          </el-table-column>
+          <el-table-column label="申请人" min-width="120">
+            <template #default="{ row }">{{ row.requester?.displayName || row.requesterId }}</template>
+          </el-table-column>
+          <el-table-column prop="fromDate" label="日期" width="120" />
+          <el-table-column label="对象/目标" min-width="140">
+            <template #default="{ row }">
+              <span v-if="row.type === 'swap'">{{ row.targetUser?.displayName || row.targetUserId || '-' }}</span>
+              <span v-else-if="row.type === 'change'">{{ shiftName(row.toShiftId) }}</span>
+              <span v-else>休息</span>
             </template>
-            <span v-else class="muted">已处理</span>
-          </template>
-        </el-table-column>
-      </el-table>
+          </el-table-column>
+          <el-table-column prop="reason" label="原因" min-width="160" show-overflow-tooltip />
+          <el-table-column prop="status" label="状态" width="100">
+            <template #default="{ row }">
+              <el-tag :type="statusType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="220" fixed="right">
+            <template #default="{ row }">
+              <template v-if="auth.isManager && row.status === 'pending'">
+                <el-button type="success" link @click="onApprove(row.id)">通过</el-button>
+                <el-button type="danger" link @click="onReject(row.id)">驳回</el-button>
+              </template>
+              <el-button
+                v-if="row.status !== 'pending'"
+                type="danger"
+                link
+                @click="onDelete(row.id)"
+              >
+                删除
+              </el-button>
+              <span v-else-if="!auth.isManager" class="muted">待处理</span>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <div class="mobile-list mobile-only" v-loading="loading">
+        <el-empty v-if="!loading && !requests.length" description="暂无申请" />
+        <div v-for="row in requests" :key="row.id" class="request-card">
+          <div class="request-head">
+            <div class="request-title">
+              <strong>{{ typeLabel(row.type) }}</strong>
+              <el-tag size="small" :type="statusType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+            </div>
+            <div class="muted">{{ row.fromDate }}</div>
+          </div>
+          <div class="request-body">
+            <div>申请人：{{ row.requester?.displayName || row.requesterId }}</div>
+            <div>
+              对象/目标：
+              <span v-if="row.type === 'swap'">{{ row.targetUser?.displayName || row.targetUserId || '-' }}</span>
+              <span v-else-if="row.type === 'change'">{{ shiftName(row.toShiftId) }}</span>
+              <span v-else>休息</span>
+            </div>
+            <div v-if="row.reason">原因：{{ row.reason }}</div>
+          </div>
+          <div class="request-actions">
+            <template v-if="auth.isManager && row.status === 'pending'">
+              <el-button type="success" size="small" @click="onApprove(row.id)">通过</el-button>
+              <el-button type="danger" size="small" @click="onReject(row.id)">驳回</el-button>
+            </template>
+            <el-button
+              v-if="row.status !== 'pending'"
+              type="danger"
+              plain
+              size="small"
+              @click="onDelete(row.id)"
+            >
+              删除
+            </el-button>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <el-dialog v-model="dialogVisible" title="新建调休/调班申请" width="520px">
-      <el-form label-width="96px">
+    <el-dialog
+      v-model="dialogVisible"
+      title="新建调休/调班申请"
+      class="responsive-dialog"
+      width="520px"
+    >
+      <el-form label-width="96px" class="mobile-form">
         <el-form-item label="申请类型">
           <el-radio-group v-model="form.type">
             <el-radio-button value="leave">调休</el-radio-button>
@@ -100,7 +154,9 @@ import dayjs from 'dayjs';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   approveRequestApi,
+  clearResolvedRequestsApi,
   createRequestApi,
+  deleteRequestApi,
   rejectRequestApi,
   requestsApi,
   shiftsApi,
@@ -115,6 +171,7 @@ import { onRealtime } from '../realtime';
 const auth = useAuthStore();
 const loading = ref(false);
 const submitting = ref(false);
+const clearing = ref(false);
 const dialogVisible = ref(false);
 const status = ref<string | undefined>(auth.isManager ? 'pending' : undefined);
 const requests = ref<ScheduleRequest[]>([]);
@@ -239,11 +296,50 @@ async function onReject(id: string) {
   }
 }
 
+async function onDelete(id: string) {
+  try {
+    await ElMessageBox.confirm('确认删除这条已处理申请？', '删除申请', { type: 'warning' });
+    await deleteRequestApi(id);
+    requests.value = requests.value.filter((item) => item.id !== id);
+    ElMessage.success('已删除');
+  } catch (error) {
+    if ((error as Error).message !== 'cancel') {
+      ElMessage.error((error as Error).message);
+    }
+  }
+}
+
+async function clearResolved() {
+  try {
+    await ElMessageBox.confirm(
+      auth.isManager
+        ? '确认清理全部已通过/已驳回的申请记录？待审批不会删除。'
+        : '确认清理我的已通过/已驳回申请记录？',
+      '清理申请记录',
+      { type: 'warning' },
+    );
+  } catch {
+    return;
+  }
+
+  clearing.value = true;
+  try {
+    const { data } = await clearResolvedRequestsApi();
+    await loadRequests();
+    ElMessage.success(`已清理 ${data.deleted} 条记录`);
+  } catch (error) {
+    ElMessage.error((error as Error).message);
+  } finally {
+    clearing.value = false;
+  }
+}
+
 onMounted(async () => {
   await Promise.all([loadMeta(), loadRequests()]);
   offRealtime = [
     onRealtime('request.created', () => loadRequests()),
     onRealtime('request.resolved', () => loadRequests()),
+    onRealtime('request.cleared', () => loadRequests()),
   ];
 });
 
@@ -257,5 +353,72 @@ onUnmounted(() => {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.status-filter {
+  width: 140px;
+}
+
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.mobile-list {
+  display: none;
+  gap: 12px;
+}
+
+.request-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px;
+  background: #fff;
+}
+
+.request-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.request-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.request-body {
+  display: grid;
+  gap: 6px;
+  color: #374151;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.request-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none;
+  }
+
+  .mobile-only {
+    display: grid;
+  }
+
+  .status-filter {
+    width: 100%;
+  }
 }
 </style>

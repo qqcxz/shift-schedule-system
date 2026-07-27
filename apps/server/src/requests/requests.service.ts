@@ -104,6 +104,60 @@ export class RequestsService {
     return item;
   }
 
+  async clearResolved(storeId: string, userId: string, role: UserRole) {
+    const qb = this.requestsRepo
+      .createQueryBuilder()
+      .delete()
+      .from(ScheduleRequest)
+      .where('storeId = :storeId', { storeId })
+      .andWhere('status IN (:...statuses)', {
+        statuses: [
+          RequestStatus.APPROVED,
+          RequestStatus.REJECTED,
+          RequestStatus.CANCELLED,
+        ],
+      });
+
+    if (role === UserRole.STAFF) {
+      qb.andWhere('requesterId = :userId', { userId });
+    }
+
+    const result = await qb.execute();
+    const deleted = result.affected || 0;
+
+    if (deleted > 0) {
+      this.realtimeGateway.emitToStore(storeId, 'request.cleared', {
+        storeId,
+        deleted,
+        by: userId,
+      });
+    }
+
+    return { ok: true, deleted };
+  }
+
+  async removeOne(storeId: string, userId: string, role: UserRole, id: string) {
+    const request = await this.findOne(storeId, id);
+
+    if (request.status === RequestStatus.PENDING) {
+      throw new BadRequestException('待审批申请不能清理，请先处理');
+    }
+
+    if (role === UserRole.STAFF && request.requesterId !== userId) {
+      throw new ForbiddenException('只能清理自己的申请记录');
+    }
+
+    await this.requestsRepo.delete({ id: request.id, storeId });
+    this.realtimeGateway.emitToStore(storeId, 'request.cleared', {
+      storeId,
+      deleted: 1,
+      id: request.id,
+      by: userId,
+    });
+
+    return { ok: true, deleted: 1 };
+  }
+
   async review(
     storeId: string,
     approverId: string,
@@ -224,3 +278,5 @@ export class RequestsService {
     return '改班';
   }
 }
+
+

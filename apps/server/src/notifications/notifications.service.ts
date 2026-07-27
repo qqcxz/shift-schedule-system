@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, LessThan, Repository } from 'typeorm';
 import { Notification } from './notification.entity';
 import { User, UserRole } from '../users/user.entity';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -34,6 +34,8 @@ export class NotificationsService {
       }),
     );
 
+    // Keep inbox from growing forever for each user.
+    await this.trimUserInbox(userId);
     this.realtimeGateway.emitToUser(userId, 'notification.created', row);
     return row;
   }
@@ -62,7 +64,7 @@ export class NotificationsService {
     return this.notificationsRepo.find({
       where: { userId },
       order: { createdAt: 'DESC' },
-      take: 50,
+      take: 100,
     });
   }
 
@@ -79,5 +81,44 @@ export class NotificationsService {
     await this.notificationsRepo.update({ userId, isRead: false }, { isRead: true });
     return { ok: true };
   }
-}
 
+  async remove(userId: string, id: string) {
+    const result = await this.notificationsRepo.delete({ id, userId });
+    return { ok: true, deleted: result.affected || 0 };
+  }
+
+  async clear(userId: string, mode: 'read' | 'all' = 'read') {
+    if (mode === 'all') {
+      const result = await this.notificationsRepo.delete({ userId });
+      return { ok: true, deleted: result.affected || 0, mode };
+    }
+
+    const result = await this.notificationsRepo.delete({ userId, isRead: true });
+    return { ok: true, deleted: result.affected || 0, mode: 'read' };
+  }
+
+  private async trimUserInbox(userId: string, keep = 100) {
+    const overflow = await this.notificationsRepo.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+      skip: keep,
+      take: 500,
+      select: ['id'],
+    });
+    if (!overflow.length) {
+      return;
+    }
+    await this.notificationsRepo.delete({
+      id: In(overflow.map((item) => item.id)),
+    });
+
+    // Also drop very old read notifications automatically.
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 30);
+    await this.notificationsRepo.delete({
+      userId,
+      isRead: true,
+      createdAt: LessThan(cutoff),
+    });
+  }
+}

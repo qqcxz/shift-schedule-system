@@ -1,5 +1,7 @@
 <template>
-  <div class="layout">
+  <div class="layout" :class="{ 'nav-open': mobileNavOpen }">
+    <div v-if="mobileNavOpen" class="nav-mask" @click="mobileNavOpen = false" />
+
     <aside class="sider">
       <div class="brand">
         <div class="brand-mark">班</div>
@@ -8,7 +10,7 @@
           <div class="brand-sub">Shift Board</div>
         </div>
       </div>
-      <el-menu :default-active="route.path" router class="menu">
+      <el-menu :default-active="route.path" router class="menu" @select="mobileNavOpen = false">
         <el-menu-item index="/schedule">排班表</el-menu-item>
         <el-menu-item index="/requests">申请审批</el-menu-item>
         <el-menu-item index="/notifications">消息中心</el-menu-item>
@@ -19,15 +21,18 @@
 
     <main class="main">
       <header class="header">
-        <div>
-          <div class="title">{{ pageTitle }}</div>
-          <div class="muted">{{ storeName || '当前门店' }} · 数据实时互通</div>
+        <div class="header-left">
+          <el-button class="menu-btn" @click="mobileNavOpen = !mobileNavOpen">菜单</el-button>
+          <div>
+            <div class="title">{{ pageTitle }}</div>
+            <div class="muted store-line">{{ storeName || '当前门店' }} · 数据实时互通</div>
+          </div>
         </div>
         <div class="header-right">
           <el-tag :type="auth.isManager ? 'warning' : 'success'">
             {{ auth.isManager ? '店长' : '店员' }}
           </el-tag>
-          <span>{{ auth.user?.displayName }}</span>
+          <span class="user-name">{{ auth.user?.displayName }}</span>
           <el-button @click="passwordVisible = true">修改密码</el-button>
           <el-button @click="onLogout">退出</el-button>
         </div>
@@ -37,8 +42,14 @@
       </section>
     </main>
 
-    <el-dialog v-model="passwordVisible" title="修改密码" width="420px" @closed="resetPasswordForm">
-      <el-form label-width="96px">
+    <el-dialog
+      v-model="passwordVisible"
+      title="修改密码"
+      class="responsive-dialog"
+      width="420px"
+      @closed="resetPasswordForm"
+    >
+      <el-form label-width="96px" class="mobile-form">
         <el-form-item label="当前密码">
           <el-input v-model="passwordForm.currentPassword" type="password" show-password />
         </el-form-item>
@@ -58,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { changePasswordApi, storeApi } from '../api';
@@ -70,6 +81,7 @@ const router = useRouter();
 const storeName = ref('');
 const passwordVisible = ref(false);
 const passwordSaving = ref(false);
+const mobileNavOpen = ref(false);
 const passwordForm = reactive({
   currentPassword: '',
   newPassword: '',
@@ -83,6 +95,13 @@ const pageTitle = computed(() => {
   if (route.path.startsWith('/staff')) return '员工管理';
   return '月度排班表';
 });
+
+watch(
+  () => route.path,
+  () => {
+    mobileNavOpen.value = false;
+  },
+);
 
 function resetPasswordForm() {
   passwordForm.currentPassword = '';
@@ -142,6 +161,10 @@ function onLogout() {
   display: grid;
   grid-template-columns: 232px 1fr;
   background: #f5f7fb;
+}
+
+.nav-mask {
+  display: none;
 }
 
 .sider {
@@ -227,6 +250,17 @@ function onLogout() {
   backdrop-filter: blur(8px);
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.menu-btn {
+  display: none;
+}
+
 .title {
   font-size: 20px;
   font-weight: 700;
@@ -248,9 +282,70 @@ function onLogout() {
     grid-template-columns: 1fr;
   }
 
+  .nav-mask {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.35);
+    z-index: 40;
+  }
+
   .sider {
-    border-right: none;
-    border-bottom: 1px solid #dbe4f3;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(280px, 86vw);
+    z-index: 50;
+    transform: translateX(-105%);
+    transition: transform 0.2s ease;
+    box-shadow: 12px 0 30px rgba(15, 23, 42, 0.12);
+    overflow-y: auto;
+  }
+
+  .layout.nav-open .sider {
+    transform: translateX(0);
+  }
+
+  .menu-btn {
+    display: inline-flex;
+  }
+
+  .header {
+    padding: 12px 14px;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .header-left,
+  .header-right {
+    width: 100%;
+  }
+
+  .title {
+    font-size: 18px;
+  }
+
+  .store-line {
+    font-size: 12px;
+  }
+
+  .content {
+    padding: 14px 12px 24px;
+  }
+}
+
+@media (max-width: 640px) {
+  .user-name {
+    max-width: 100%;
+  }
+
+  .header-right {
+    gap: 8px;
+  }
+
+  .header-right :deep(.el-button) {
+    flex: 1 1 calc(50% - 8px);
   }
 }
 </style>

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -35,6 +36,21 @@ export class RequestsController {
     @Body() dto: CreateRequestDto,
   ) {
     return this.requestsService.create(req.user.storeId, req.user.userId, req.user.role, dto);
+  }
+
+  @Post('clear-resolved')
+  clearResolved(
+    @Req() req: { user: { storeId: string; userId: string; role: UserRole } },
+  ) {
+    return this.requestsService.clearResolved(req.user.storeId, req.user.userId, req.user.role);
+  }
+
+  @Delete(':id')
+  remove(
+    @Req() req: { user: { storeId: string; userId: string; role: UserRole } },
+    @Param('id') id: string,
+  ) {
+    return this.requestsService.removeOne(req.user.storeId, req.user.userId, req.user.role, id);
   }
 
   @Post(':id/approve')

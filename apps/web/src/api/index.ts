@@ -167,8 +167,16 @@ export const approveRequestApi = (id: string, reviewNote?: string) =>
 export const rejectRequestApi = (id: string, reviewNote?: string) =>
   http.post(`/requests/${id}/reject`, { reviewNote });
 
+export const clearResolvedRequestsApi = () =>
+  http.post<{ ok: boolean; deleted: number }>('/requests/clear-resolved');
+
+export const deleteRequestApi = (id: string) =>
+  http.delete<{ ok: boolean; deleted: number }>(`/requests/${id}`);
+
 export const notificationsApi = () => http.get<NotificationItem[]>('/notifications');
 export const markNotificationReadApi = (id: string) => http.post(`/notifications/${id}/read`);
 export const markAllNotificationsReadApi = () => http.post('/notifications/read-all');
-
-
+export const clearNotificationsApi = (mode: 'read' | 'all' = 'read') =>
+  http.post<{ ok: boolean; deleted: number; mode: string }>('/notifications/clear', { mode });
+export const deleteNotificationApi = (id: string) =>
+  http.delete<{ ok: boolean; deleted: number }>(`/notifications/${id}`);

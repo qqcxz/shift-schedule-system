@@ -1,5 +1,5 @@
 <template>
-  <div class="page-card">
+  <div class="page-card schedule-page">
     <div class="toolbar">
       <div class="left">
         <el-date-picker
@@ -70,11 +70,11 @@
       </table>
     </div>
 
-    <el-dialog v-model="cleanupVisible" title="清理历史排班" width="480px">
+    <el-dialog v-model="cleanupVisible" title="清理历史排班" class="responsive-dialog" width="480px">
       <div class="cleanup-tip muted">
         历史排班会持续增长。可只保留最近几个月，或删除指定月份之前的数据。删除后不可恢复。
       </div>
-      <el-form label-width="120px" style="margin-top: 16px">
+      <el-form class="mobile-form" label-width="120px" style="margin-top: 16px">
         <el-form-item label="清理方式">
           <el-radio-group v-model="cleanupMode">
             <el-radio-button value="keep">保留最近 N 个月</el-radio-button>
@@ -459,4 +459,29 @@ onUnmounted(() => {
   margin-top: 6px;
   font-size: 12px;
 }
+
+@media (max-width: 768px) {
+  .storage-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .schedule-table th,
+  .schedule-table td {
+    min-width: 56px;
+    padding: 6px 4px;
+    font-size: 12px;
+  }
+
+  .sticky-col {
+    min-width: 84px !important;
+  }
+
+  .shift-chip {
+    min-width: 48px;
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+}
 </style>
+

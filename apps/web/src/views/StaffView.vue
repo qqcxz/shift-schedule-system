@@ -16,7 +16,7 @@
       </div>
     </div>
 
-    <el-table :data="users" v-loading="loading" stripe>
+    <div class="table-scroll"><el-table :data="users" v-loading="loading" stripe>
       <el-table-column prop="displayName" label="姓名" min-width="120" />
       <el-table-column prop="username" label="登录账号" min-width="120" />
       <el-table-column label="角色" width="100">
@@ -55,10 +55,10 @@
           <el-button link type="danger" @click="onDelete(row)">删除</el-button>
         </template>
       </el-table-column>
-    </el-table>
+    </el-table></div>
 
-    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑员工' : '新增员工'" width="520px">
-      <el-form label-width="96px">
+    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑员工' : '新增员工'" class="responsive-dialog" width="520px">
+      <el-form label-width="96px" class="mobile-form">
         <el-form-item label="姓名">
           <el-input v-model="form.displayName" placeholder="例如：店员小王" maxlength="32" />
         </el-form-item>
@@ -247,3 +247,4 @@ onUnmounted(() => {
   flex-wrap: wrap;
 }
 </style>
+

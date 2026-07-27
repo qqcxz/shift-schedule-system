@@ -11,7 +11,7 @@
       </div>
     </div>
 
-    <el-table :data="shifts" v-loading="loading" stripe>
+    <div class="table-scroll"><el-table :data="shifts" v-loading="loading" stripe>
       <el-table-column label="颜色" width="80">
         <template #default="{ row }">
           <span class="color-dot" :style="{ background: row.color }" />
@@ -36,10 +36,10 @@
           <el-button link type="danger" @click="onDelete(row)">删除</el-button>
         </template>
       </el-table-column>
-    </el-table>
+    </el-table></div>
 
-    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑班次' : '新增班次'" width="520px">
-      <el-form label-width="96px">
+    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑班次' : '新增班次'" class="responsive-dialog" width="520px">
+      <el-form label-width="96px" class="mobile-form">
         <el-form-item label="班次名称">
           <el-input v-model="form.name" placeholder="例如：早班" maxlength="32" />
         </el-form-item>
@@ -241,3 +241,4 @@ onUnmounted(() => {
   gap: 12px;
 }
 </style>
+
