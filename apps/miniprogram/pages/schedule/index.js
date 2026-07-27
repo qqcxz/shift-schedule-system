@@ -8,6 +8,13 @@ Page({
     month: '',
     loading: false,
     saving: false,
+    cleaning: false,
+    showCleanup: false,
+    cleanupModes: ['保留最近 N 个月', '删除指定月份前'],
+    cleanupModeIndex: 0,
+    keepMonths: 12,
+    beforeMonth: '',
+    storage: null,
     isManager: false,
     userName: '',
     shifts: [],
@@ -199,15 +206,27 @@ Page({
     if (this.data.loading) return;
     this.setData({ loading: true });
     try {
-      const [users, shifts, schedules] = await Promise.all([
+      const tasks = [
         api.users(),
         api.shifts(),
         api.schedules(this.data.month),
-      ]);
+      ];
+      if (this.data.isManager) {
+        tasks.push(api.scheduleStorage().catch(() => null));
+      }
+      const results = await Promise.all(tasks);
+      const users = results[0];
+      const shifts = results[1];
+      const schedules = results[2];
+      const storage = this.data.isManager ? results[3] : null;
       this.users = users || [];
       this.items = (schedules && schedules.items) || [];
       this.drafts = {};
-      this.setData({ shifts: shifts || [] });
+      this.setData({
+        shifts: shifts || [],
+        storage: storage || null,
+        keepMonths: (storage && storage.keepMonthsDefault) || this.data.keepMonths || 12,
+      });
       this.buildView();
     } catch (e) {
       // handled
@@ -234,6 +253,71 @@ Page({
       status: next.isOff ? 'leave' : 'normal',
     };
     this.buildView();
+  },
+
+  openCleanup() {
+    const defaultKeep = (this.data.storage && this.data.storage.keepMonthsDefault) || 12;
+    const d = new Date();
+    d.setMonth(d.getMonth() - defaultKeep);
+    const beforeMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    this.setData({
+      showCleanup: true,
+      cleanupModeIndex: 0,
+      keepMonths: defaultKeep,
+      beforeMonth,
+    });
+  },
+
+  closeCleanup() {
+    this.setData({ showCleanup: false });
+  },
+
+  onCleanupMode(e) {
+    this.setData({ cleanupModeIndex: Number(e.detail.value || 0) });
+  },
+
+  onKeepMonths(e) {
+    this.setData({ keepMonths: Number(e.detail.value || 1) });
+  },
+
+  onBeforeMonth(e) {
+    this.setData({ beforeMonth: e.detail.value });
+  },
+
+  onCleanup() {
+    const { cleanupModeIndex, keepMonths, beforeMonth, cleaning } = this.data;
+    if (cleaning) return;
+    if (cleanupModeIndex === 1 && !/^\d{4}-\d{2}$/.test(String(beforeMonth || ''))) {
+      wx.showToast({ title: '截止日期格式应为 YYYY-MM', icon: 'none' });
+      return;
+    }
+    const payload = cleanupModeIndex === 0
+      ? { keepMonths: Number(keepMonths || 12) }
+      : { beforeMonth: String(beforeMonth) };
+    const tip = cleanupModeIndex === 0
+      ? ('确认只保留最近 ' + payload.keepMonths + ' 个月？更早数据将永久删除。')
+      : ('确认删除 ' + payload.beforeMonth + ' 之前的全部排班？');
+    wx.showModal({
+      title: '清理历史排班',
+      content: tip,
+      success: async (res) => {
+        if (!res.confirm) return;
+        this.setData({ cleaning: true });
+        try {
+          const data = await api.cleanupSchedules(payload);
+          this.setData({
+            storage: (data && data.summary) || this.data.storage,
+            showCleanup: false,
+          });
+          wx.showToast({ title: '已清理 ' + ((data && data.deleted) || 0) + ' 条', icon: 'success' });
+          this.loadAll();
+        } catch (e) {
+          // handled
+        } finally {
+          this.setData({ cleaning: false });
+        }
+      },
+    });
   },
 
   async saveAll() {
@@ -281,4 +365,5 @@ Page({
     }
   },
 });
+
 

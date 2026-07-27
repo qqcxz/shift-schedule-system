@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { SchedulesService } from './schedules.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../common/roles.decorator';
 import { UserRole } from '../users/user.entity';
 import { SaveMonthScheduleDto } from './dto/save-month-schedule.dto';
+import { CleanupSchedulesDto } from './dto/cleanup-schedules.dto';
 
 @Controller('schedules')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -18,6 +19,12 @@ export class SchedulesController {
     return this.schedulesService.getMonth(req.user.storeId, month, req.user.userId, req.user.role);
   }
 
+  @Get('storage')
+  @Roles(UserRole.MANAGER)
+  getStorage(@Req() req: { user: { storeId: string } }) {
+    return this.schedulesService.getStorageSummary(req.user.storeId);
+  }
+
   @Put('month')
   @Roles(UserRole.MANAGER)
   saveMonth(
@@ -25,5 +32,14 @@ export class SchedulesController {
     @Body() dto: SaveMonthScheduleDto,
   ) {
     return this.schedulesService.saveMonth(req.user.storeId, req.user.userId, dto);
+  }
+
+  @Post('cleanup')
+  @Roles(UserRole.MANAGER)
+  cleanup(
+    @Req() req: { user: { storeId: string } },
+    @Body() dto: CleanupSchedulesDto,
+  ) {
+    return this.schedulesService.cleanup(req.user.storeId, dto);
   }
 }

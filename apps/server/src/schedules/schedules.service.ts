@@ -4,9 +4,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, In, Repository } from 'typeorm';
+import { Between, In, LessThan, Repository } from 'typeorm';
 import { Schedule } from './schedule.entity';
 import { SaveMonthScheduleDto } from './dto/save-month-schedule.dto';
+import { CleanupSchedulesDto } from './dto/cleanup-schedules.dto';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { ShiftTemplate } from '../shifts/shift-template.entity';
 import { UserRole } from '../users/user.entity';
@@ -30,6 +31,19 @@ export class SchedulesService {
     const endDay = new Date(year, monthIndex + 1, 0).getDate();
     const end = `${month}-${String(endDay).padStart(2, '0')}`;
     return { start, end };
+  }
+
+  private shiftMonth(month: string, offset: number) {
+    const [yearText, monthText] = month.split('-');
+    const base = new Date(Number(yearText), Number(monthText) - 1 + offset, 1);
+    const year = base.getFullYear();
+    const mon = String(base.getMonth() + 1).padStart(2, '0');
+    return `${year}-${mon}`;
+  }
+
+  private currentMonth() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   }
 
   async getMonth(storeId: string, month: string, userId?: string, role?: UserRole) {
@@ -60,6 +74,65 @@ export class SchedulesService {
         version: item.version,
         note: item.note,
       })),
+    };
+  }
+
+  async getStorageSummary(storeId: string) {
+    const total = await this.schedulesRepo.count({ where: { storeId } });
+    const oldest = await this.schedulesRepo.find({
+      where: { storeId },
+      order: { workDate: 'ASC' },
+      take: 1,
+    });
+    const newest = await this.schedulesRepo.find({
+      where: { storeId },
+      order: { workDate: 'DESC' },
+      take: 1,
+    });
+
+    return {
+      total,
+      oldestDate: oldest[0]?.workDate || null,
+      newestDate: newest[0]?.workDate || null,
+      keepMonthsDefault: Number(process.env.SCHEDULE_KEEP_MONTHS || 12),
+    };
+  }
+
+  async cleanup(storeId: string, dto: CleanupSchedulesDto) {
+    if (!dto.beforeMonth && !dto.keepMonths) {
+      throw new BadRequestException('请指定 beforeMonth 或 keepMonths');
+    }
+
+    let cutoffMonth = dto.beforeMonth;
+    if (dto.keepMonths) {
+      const keepCutoff = this.shiftMonth(this.currentMonth(), -(dto.keepMonths - 1));
+      if (!cutoffMonth || keepCutoff < cutoffMonth) {
+        cutoffMonth = keepCutoff;
+      }
+    }
+
+    if (!cutoffMonth || !/^\d{4}-\d{2}$/.test(cutoffMonth)) {
+      throw new BadRequestException('beforeMonth 格式应为 YYYY-MM');
+    }
+
+    const cutoffDate = `${cutoffMonth}-01`;
+    const result = await this.schedulesRepo.delete({
+      storeId,
+      workDate: LessThan(cutoffDate),
+    });
+
+    this.realtimeGateway.emitToStore(storeId, 'schedule.updated', {
+      action: 'cleanup',
+      storeId,
+      beforeMonth: cutoffMonth,
+      deleted: result.affected || 0,
+    });
+
+    return {
+      ok: true,
+      beforeMonth: cutoffMonth,
+      deleted: result.affected || 0,
+      summary: await this.getStorageSummary(storeId),
     };
   }
 

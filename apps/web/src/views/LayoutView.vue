@@ -1,7 +1,13 @@
 <template>
   <div class="layout">
     <aside class="sider">
-      <div class="brand">门店排班</div>
+      <div class="brand">
+        <div class="brand-mark">班</div>
+        <div>
+          <div class="brand-title">门店排班</div>
+          <div class="brand-sub">Shift Board</div>
+        </div>
+      </div>
       <el-menu :default-active="route.path" router class="menu">
         <el-menu-item index="/schedule">排班表</el-menu-item>
         <el-menu-item index="/requests">申请审批</el-menu-item>
@@ -134,24 +140,71 @@ function onLogout() {
 .layout {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 232px 1fr;
+  background: #f5f7fb;
 }
 
 .sider {
-  background: #111827;
-  color: #fff;
-  padding: 20px 12px;
+  background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  border-right: 1px solid #dbe4f3;
+  color: #1f2937;
+  padding: 20px 14px;
 }
 
 .brand {
-  font-size: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px 22px;
+}
+
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #fff;
   font-weight: 700;
-  padding: 8px 12px 20px;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.28);
+}
+
+.brand-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.brand-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .menu {
   border-right: none;
   background: transparent;
+}
+
+.menu :deep(.el-menu-item) {
+  height: 44px;
+  margin-bottom: 6px;
+  border-radius: 12px;
+  color: #334155 !important;
+  font-weight: 600;
+}
+
+.menu :deep(.el-menu-item:hover) {
+  background: rgba(37, 99, 235, 0.08) !important;
+  color: #1d4ed8 !important;
+}
+
+.menu :deep(.el-menu-item.is-active) {
+  background: #2563eb !important;
+  color: #fff !important;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.22);
 }
 
 .main {
@@ -166,7 +219,7 @@ function onLogout() {
   gap: 16px;
   align-items: center;
   padding: 18px 24px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
   border-bottom: 1px solid #e5e7eb;
   position: sticky;
   top: 0;
@@ -183,10 +236,11 @@ function onLogout() {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .content {
-  padding: 20px 24px 32px;
+  padding: 20px 24px 28px;
 }
 
 @media (max-width: 900px) {
@@ -195,7 +249,8 @@ function onLogout() {
   }
 
   .sider {
-    display: none;
+    border-right: none;
+    border-bottom: 1px solid #dbe4f3;
   }
 }
 </style>

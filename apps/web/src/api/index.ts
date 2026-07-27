@@ -127,6 +127,27 @@ export const saveMonthSchedulesApi = (payload: {
   }>;
 }) => http.put('/schedules/month', payload);
 
+export type ScheduleStorageSummary = {
+  total: number;
+  oldestDate: string | null;
+  newestDate: string | null;
+  keepMonthsDefault: number;
+};
+
+export const scheduleStorageApi = () =>
+  http.get<ScheduleStorageSummary>('/schedules/storage');
+
+export const cleanupSchedulesApi = (payload: {
+  beforeMonth?: string;
+  keepMonths?: number;
+}) =>
+  http.post<{
+    ok: boolean;
+    beforeMonth: string;
+    deleted: number;
+    summary: ScheduleStorageSummary;
+  }>('/schedules/cleanup', payload);
+
 export const requestsApi = (status?: string) =>
   http.get<ScheduleRequest[]>('/requests', { params: status ? { status } : {} });
 
@@ -149,3 +170,5 @@ export const rejectRequestApi = (id: string, reviewNote?: string) =>
 export const notificationsApi = () => http.get<NotificationItem[]>('/notifications');
 export const markNotificationReadApi = (id: string) => http.post(`/notifications/${id}/read`);
 export const markAllNotificationsReadApi = () => http.post('/notifications/read-all');
+
+

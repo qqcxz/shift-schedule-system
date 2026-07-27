@@ -17,9 +17,8 @@
           <span class="color-dot" :style="{ background: row.color }" />
         </template>
       </el-table-column>
-      <el-table-column prop="name" label="班次名称" min-width="120" />
-      <el-table-column prop="code" label="编码" min-width="120" />
-      <el-table-column label="时间" min-width="160">
+      <el-table-column prop="name" label="班次名称" min-width="140" />
+      <el-table-column label="时间" min-width="180">
         <template #default="{ row }">
           <span v-if="row.isOff">休息</span>
           <span v-else>{{ row.startTime }} - {{ row.endTime }}</span>
@@ -43,9 +42,6 @@
       <el-form label-width="96px">
         <el-form-item label="班次名称">
           <el-input v-model="form.name" placeholder="例如：早班" maxlength="32" />
-        </el-form-item>
-        <el-form-item label="编码">
-          <el-input v-model="form.code" placeholder="可选，默认按名称生成" maxlength="32" />
         </el-form-item>
         <el-form-item label="是否休息">
           <el-switch v-model="form.isOff" />
@@ -107,7 +103,6 @@ const editingId = ref('');
 const shifts = ref<ShiftTemplate[]>([]);
 const form = reactive({
   name: '',
-  code: '',
   startTime: '09:00',
   endTime: '13:00',
   color: '#409EFF',
@@ -119,7 +114,6 @@ let offRealtime: Array<() => void> = [];
 
 function resetForm() {
   form.name = '';
-  form.code = '';
   form.startTime = '09:00';
   form.endTime = '13:00';
   form.color = '#409EFF';
@@ -148,7 +142,6 @@ function openCreate() {
 function openEdit(row: ShiftTemplate) {
   editingId.value = row.id;
   form.name = row.name;
-  form.code = row.code;
   form.startTime = row.startTime;
   form.endTime = row.endTime;
   form.color = row.color;
@@ -171,7 +164,6 @@ async function onSave() {
   try {
     const payload = {
       name: form.name.trim(),
-      code: form.code.trim() || undefined,
       startTime: form.isOff ? '00:00' : form.startTime,
       endTime: form.isOff ? '00:00' : form.endTime,
       color: form.color || '#409EFF',

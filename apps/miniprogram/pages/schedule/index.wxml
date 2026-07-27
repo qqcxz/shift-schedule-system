@@ -8,6 +8,7 @@
       </view>
       <view class="row gap">
         <button size="mini" bindtap="loadAll" loading="{{loading}}">刷新</button>
+        <button wx:if="{{isManager}}" size="mini" bindtap="openCleanup">清理</button>
         <button wx:if="{{isManager}}" size="mini" class="btn-primary" bindtap="saveAll" loading="{{saving}}">保存</button>
       </view>
     </view>
@@ -22,6 +23,12 @@
         <text class="link" bindtap="onLogout">退出</text>
       </view>
     </view>
+  </view>
+
+  <view wx:if="{{isManager && storage}}" class="card storage-bar">
+    <view class="muted tiny">排班记录 {{storage.total}} 条</view>
+    <view class="muted tiny" wx:if="{{storage.oldestDate}}">最早 {{storage.oldestDate}}</view>
+    <view class="muted tiny" wx:if="{{storage.newestDate}}">最新 {{storage.newestDate}}</view>
   </view>
 
   <view wx:if="{{isManager}}" class="card manage-entry">
@@ -77,6 +84,31 @@
     </view>
   </scroll-view>
 
+  <view wx:if="{{showCleanup}}" class="mask" bindtap="closeCleanup">
+    <view class="dialog card" catchtap="noop">
+      <view class="dialog-title">清理历史排班</view>
+      <view class="muted tiny">可保留最近几个月，或删除指定月份前的数据。删除后不可恢复。</view>
+      <view class="field">
+        <view class="label">清理方式</view>
+        <picker mode="selector" range="{{cleanupModes}}" value="{{cleanupModeIndex}}" bindchange="onCleanupMode">
+          <view class="picker">{{cleanupModes[cleanupModeIndex]}}</view>
+        </picker>
+      </view>
+      <view class="field" wx:if="{{cleanupModeIndex === 0}}">
+        <view class="label">保留月数</view>
+        <input class="input" type="number" value="{{keepMonths}}" bindinput="onKeepMonths" />
+      </view>
+      <view class="field" wx:else>
+        <view class="label">截止日期(YYYY-MM)</view>
+        <input class="input" value="{{beforeMonth}}" bindinput="onBeforeMonth" placeholder="例如 2026-01" />
+      </view>
+      <view class="actions row gap">
+        <button size="mini" bindtap="closeCleanup">取消</button>
+        <button size="mini" class="btn-primary" loading="{{cleaning}}" bindtap="onCleanup">确认清理</button>
+      </view>
+    </view>
+  </view>
+
   <view wx:if="{{showPassword}}" class="mask" bindtap="closePassword">
     <view class="dialog card" catchtap="noop">
       <view class="dialog-title">修改密码</view>
@@ -99,3 +131,4 @@
     </view>
   </view>
 </view>
+

@@ -21,13 +21,12 @@
           <view class="color-preview" style="background: {{item.color}};"></view>
           <view>
             <view class="strong">{{item.name}}</view>
-            <view class="muted tiny">{{item.code}}</view>
+            <view class="muted tiny">{{item.isOff ? '休息' : item.startTime + '-' + item.endTime}}</view>
           </view>
         </view>
         <text class="tag {{item.isOff ? 'tag-info' : 'tag-success'}}">{{item.isOff ? '休息' : '上班'}}</text>
       </view>
       <view class="meta">
-        <view>时间：{{item.isOff ? '休息' : item.startTime + '-' + item.endTime}}</view>
         <view>排序：{{item.sortOrder}}</view>
       </view>
       <view class="actions row gap">
@@ -44,11 +43,6 @@
       <view class="field">
         <view class="label">班次名称</view>
         <input class="input" value="{{form.name}}" bindinput="onName" placeholder="例如：早班" />
-      </view>
-
-      <view class="field">
-        <view class="label">编码（可选）</view>
-        <input class="input" value="{{form.code}}" bindinput="onCode" placeholder="默认按名称生成" />
       </view>
 
       <view class="field switch-row">

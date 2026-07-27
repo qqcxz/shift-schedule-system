@@ -167,3 +167,7 @@
 .actions {
   margin-top: 18rpx;
 }
+
+.storage-bar { margin-bottom: 20rpx; display: flex; flex-wrap: wrap; gap: 12rpx 20rpx; }
+.picker { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 14rpx; padding: 18rpx 20rpx; }
+

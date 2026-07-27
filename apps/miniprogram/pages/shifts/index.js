@@ -21,10 +21,9 @@ Page({
     colorNames: COLOR_OPTIONS.map((item) => item.name),
     colorIndex: 2,
     form: {
-      name: '',
-      code: '',
-      startTime: '09:00',
-      endTime: '13:00',
+        name: '',
+        startTime: '09:00',
+        endTime: '13:00',
       color: '#409EFF',
       sortOrder: 1,
       isOff: false,
@@ -82,7 +81,6 @@ Page({
       colorIndex: 2,
       form: {
         name: '',
-        code: '',
         startTime: '09:00',
         endTime: '13:00',
         color: '#409EFF',
@@ -106,7 +104,6 @@ Page({
       colorIndex: colorIndex < 0 ? 2 : colorIndex,
       form: {
         name: row.name,
-        code: row.code,
         startTime: row.startTime,
         endTime: row.endTime,
         color: row.color,
@@ -124,9 +121,6 @@ Page({
 
   onName(e) {
     this.setData({ 'form.name': e.detail.value });
-  },
-  onCode(e) {
-    this.setData({ 'form.code': e.detail.value });
   },
   onIsOff(e) {
     this.setData({ 'form.isOff': !!e.detail.value });
@@ -164,7 +158,6 @@ Page({
     try {
       const payload = {
         name: String(form.name).trim(),
-        code: form.code ? String(form.code).trim() : undefined,
         startTime: form.isOff ? '00:00' : form.startTime,
         endTime: form.isOff ? '00:00' : form.endTime,
         color: form.color || '#409EFF',
@@ -205,3 +198,5 @@ Page({
     });
   },
 });
+
+

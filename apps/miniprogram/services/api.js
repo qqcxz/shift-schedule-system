@@ -68,6 +68,14 @@ function saveMonthSchedules(payload) {
   return request({ url: '/schedules/month', method: 'PUT', data: payload });
 }
 
+function scheduleStorage() {
+  return request({ url: '/schedules/storage' });
+}
+
+function cleanupSchedules(payload) {
+  return request({ url: '/schedules/cleanup', method: 'POST', data: payload });
+}
+
 function requests(status) {
   return request({ url: '/requests', params: status ? { status } : {} });
 }
@@ -119,6 +127,8 @@ module.exports = {
   store,
   schedules,
   saveMonthSchedules,
+  scheduleStorage,
+  cleanupSchedules,
   requests,
   createRequest,
   approveRequest,
@@ -127,3 +137,5 @@ module.exports = {
   markNotificationRead,
   markAllNotificationsRead,
 };
+
+
