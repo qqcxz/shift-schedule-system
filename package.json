@@ -14,6 +14,16 @@
     "dev:server": "npm run dev -w @shift/server",
     "dev:mini": "node -e \"console.log('\\n请用微信开发者工具打开目录: apps/miniprogram\\n并先启动后端: npm run dev:server\\n')\""
   },
+  "overrides": {
+    "typeorm@0.3.31": {
+      "glob": "13.0.6"
+    },
+    "glob@13.0.6": {
+      "minimatch": {
+        "brace-expansion": "5.0.9"
+      }
+    }
+  },
   "devDependencies": {
     "concurrently": "^9.1.2"
   }

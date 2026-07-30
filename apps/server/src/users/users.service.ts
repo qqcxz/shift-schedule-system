@@ -5,11 +5,14 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
-import { Not, Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import { User, UserRole } from './user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { Schedule } from '../schedules/schedule.entity';
+import { Notification } from '../notifications/notification.entity';
+import { ScheduleRequest } from '../requests/schedule-request.entity';
 
 @Injectable()
 export class UsersService {
@@ -167,7 +170,7 @@ export class UsersService {
     if (user.id === operatorId) {
       throw new BadRequestException('不能删除自己的账号');
     }
-    if (user.role === UserRole.MANAGER) {
+    if (user.role === UserRole.MANAGER && user.isActive) {
       const managerCount = await this.usersRepo.count({
         where: { storeId, role: UserRole.MANAGER, isActive: true },
       });
@@ -176,14 +179,65 @@ export class UsersService {
       }
     }
 
-    // Soft delete: keep historical schedules, hide from active roster.
-    user.isActive = false;
-    await this.usersRepo.save(user);
+    const deleted = await this.usersRepo.manager.transaction(async (manager) => {
+      const relatedRequests = await manager.find(ScheduleRequest, {
+        where: [
+          { storeId, requesterId: id },
+          { storeId, targetUserId: id },
+        ],
+        select: { id: true },
+      });
+      const requestIds = relatedRequests.map((request) => request.id);
+
+      const schedules = await manager.delete(Schedule, { storeId, userId: id });
+      const userNotifications = await manager.delete(Notification, {
+        storeId,
+        userId: id,
+      });
+      let deletedNotifications = userNotifications.affected || 0;
+      let deletedRequests = 0;
+
+      if (requestIds.length > 0) {
+        const requestNotifications = await manager.delete(Notification, {
+          storeId,
+          relatedType: 'request',
+          relatedId: In(requestIds),
+        });
+        const requests = await manager.delete(ScheduleRequest, {
+          storeId,
+          id: In(requestIds),
+        });
+        deletedNotifications += requestNotifications.affected || 0;
+        deletedRequests = requests.affected || 0;
+      }
+
+      await manager.delete(User, { id, storeId });
+
+      return {
+        schedules: schedules.affected || 0,
+        requests: deletedRequests,
+        notifications: deletedNotifications,
+      };
+    });
 
     this.realtimeGateway.emitToStore(storeId, 'users.updated', {
       action: 'deleted',
       userId: user.id,
     });
-    return { ok: true };
+    if (deleted.schedules > 0) {
+      this.realtimeGateway.emitToStore(storeId, 'schedule.updated', {
+        action: 'user-deleted',
+        storeId,
+        userId: user.id,
+        deleted: deleted.schedules,
+      });
+    }
+
+    return {
+      ok: true,
+      deletedSchedules: deleted.schedules,
+      deletedRequests: deleted.requests,
+      deletedNotifications: deleted.notifications,
+    };
   }
 }

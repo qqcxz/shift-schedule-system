@@ -205,12 +205,12 @@ async function onToggleActive(row: User, isActive: boolean) {
 async function onDelete(row: User) {
   try {
     await ElMessageBox.confirm(
-      `确认删除员工「${row.displayName}」？删除后将停用该账号，历史排班仍会保留。`,
+      `确认永久删除员工「${row.displayName}」？该员工账号、全部排班及相关申请记录将一并删除，操作不可恢复。`,
       '删除员工',
       { type: 'warning' },
     );
     await deleteUserApi(row.id);
-    ElMessage.success('员工已删除（已停用）');
+    ElMessage.success('员工及相关数据已删除');
     await loadUsers();
   } catch (error) {
     if ((error as Error).message && (error as Error).message !== 'cancel') {

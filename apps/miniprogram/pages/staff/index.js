@@ -188,12 +188,12 @@ Page({
     const { id, name } = e.currentTarget.dataset;
     wx.showModal({
       title: '删除员工',
-      content: `确认删除员工「${name}」？删除后将停用该账号，历史排班仍会保留。`,
+      content: `确认永久删除员工「${name}」？该员工账号、全部排班及相关申请记录将一并删除，操作不可恢复。`,
       success: async (res) => {
         if (!res.confirm) return;
         try {
           await api.deleteUser(id);
-          wx.showToast({ title: '已删除', icon: 'success' });
+          wx.showToast({ title: '员工数据已删除', icon: 'success' });
           this.loadUsers();
         } catch (err) {
           // toast already shown
