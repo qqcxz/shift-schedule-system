@@ -70,6 +70,15 @@ a {
   width: 100%;
 }
 
+.records {
+  position: relative;
+  min-height: 48px;
+}
+
+.mobile-list {
+  display: none;
+}
+
 .table-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -138,6 +147,93 @@ a {
 @media (max-width: 640px) {
   .page-card {
     padding: 12px;
+  }
+
+  .desktop-table {
+    display: none;
+  }
+
+  .mobile-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobile-record {
+    padding: 14px 2px;
+    border-top: 1px solid #eef0f3;
+  }
+
+  .mobile-record:first-child {
+    border-top: none;
+  }
+
+  .record-header,
+  .record-footer,
+  .record-identity,
+  .record-actions,
+  .record-badges {
+    display: flex;
+  }
+
+  .record-header,
+  .record-footer {
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .record-identity {
+    min-width: 0;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .record-name {
+    color: #1f2937;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .record-description,
+  .record-meta {
+    color: #7b8492;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .record-description {
+    margin-top: 3px;
+  }
+
+  .record-badges {
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .record-footer {
+    align-items: center;
+    margin-top: 12px;
+  }
+
+  .record-actions {
+    align-items: center;
+    gap: 12px;
+  }
+
+  .record-actions .mobile-action {
+    min-height: 24px;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-size: 14px;
+  }
+
+  .mobile-record .color-dot {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
   }
 
   .toolbar .right,

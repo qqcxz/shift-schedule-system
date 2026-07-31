@@ -16,46 +16,96 @@
       </div>
     </div>
 
-    <div class="table-scroll"><el-table :data="users" v-loading="loading" stripe>
-      <el-table-column prop="displayName" label="姓名" min-width="120" />
-      <el-table-column prop="username" label="登录账号" min-width="120" />
-      <el-table-column label="角色" width="100">
-        <template #default="{ row }">
-          <el-tag :type="row.role === 'manager' ? 'warning' : 'success'">
-            {{ row.role === 'manager' ? '店长' : '店员' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="状态" width="100">
-        <template #default="{ row }">
-          <el-tag :type="row.isActive === false ? 'info' : 'success'">
-            {{ row.isActive === false ? '已停用' : '在职' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="260" fixed="right">
-        <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button
-            v-if="row.isActive !== false"
-            link
-            type="warning"
-            @click="onToggleActive(row, false)"
-          >
-            停用
-          </el-button>
-          <el-button
-            v-else
-            link
-            type="success"
-            @click="onToggleActive(row, true)"
-          >
-            启用
-          </el-button>
-          <el-button link type="danger" @click="onDelete(row)">删除</el-button>
-        </template>
-      </el-table-column>
-    </el-table></div>
+    <div class="records" v-loading="loading">
+      <div class="table-scroll desktop-table">
+        <el-table :data="users" stripe>
+          <el-table-column prop="displayName" label="姓名" min-width="120" />
+          <el-table-column prop="username" label="登录账号" min-width="120" />
+          <el-table-column label="角色" width="100">
+            <template #default="{ row }">
+              <el-tag :type="row.role === 'manager' ? 'warning' : 'success'">
+                {{ row.role === 'manager' ? '店长' : '店员' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="100">
+            <template #default="{ row }">
+              <el-tag :type="row.isActive === false ? 'info' : 'success'">
+                {{ row.isActive === false ? '已停用' : '在职' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="260" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+              <el-button
+                v-if="row.isActive !== false"
+                link
+                type="warning"
+                @click="onToggleActive(row, false)"
+              >
+                停用
+              </el-button>
+              <el-button
+                v-else
+                link
+                type="success"
+                @click="onToggleActive(row, true)"
+              >
+                启用
+              </el-button>
+              <el-button link type="danger" @click="onDelete(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <div class="mobile-list" aria-label="员工列表">
+        <div v-for="row in users" :key="row.id" class="mobile-record staff-record">
+          <div class="record-header">
+            <div class="record-identity">
+              <div>
+                <div class="record-name">{{ row.displayName }}</div>
+                <div class="record-description">账号：{{ row.username }}</div>
+              </div>
+            </div>
+            <div class="record-badges">
+              <el-tag size="small" :type="row.role === 'manager' ? 'warning' : 'success'">
+                {{ row.role === 'manager' ? '店长' : '店员' }}
+              </el-tag>
+              <el-tag size="small" :type="row.isActive === false ? 'info' : 'success'">
+                {{ row.isActive === false ? '已停用' : '在职' }}
+              </el-tag>
+            </div>
+          </div>
+          <div class="record-footer">
+            <span class="record-meta">账号状态</span>
+            <div class="record-actions">
+              <el-button link type="primary" class="mobile-action" @click="openEdit(row)">编辑</el-button>
+              <el-button
+                v-if="row.isActive !== false"
+                link
+                type="warning"
+                class="mobile-action"
+                @click="onToggleActive(row, false)"
+              >
+                停用
+              </el-button>
+              <el-button
+                v-else
+                link
+                type="success"
+                class="mobile-action"
+                @click="onToggleActive(row, true)"
+              >
+                启用
+              </el-button>
+              <el-button link type="danger" class="mobile-action" @click="onDelete(row)">删除</el-button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <el-dialog v-model="dialogVisible" :title="editingId ? '编辑员工' : '新增员工'" class="responsive-dialog" width="520px">
       <el-form label-width="96px" class="mobile-form">

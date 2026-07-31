@@ -11,32 +11,63 @@
       </div>
     </div>
 
-    <div class="table-scroll"><el-table :data="shifts" v-loading="loading" stripe>
-      <el-table-column label="颜色" width="80">
-        <template #default="{ row }">
-          <span class="color-dot" :style="{ background: row.color }" />
-        </template>
-      </el-table-column>
-      <el-table-column prop="name" label="班次名称" min-width="140" />
-      <el-table-column label="时间" min-width="180">
-        <template #default="{ row }">
-          <span v-if="row.isOff">休息</span>
-          <span v-else>{{ row.startTime }} - {{ row.endTime }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="sortOrder" label="排序" width="90" />
-      <el-table-column label="类型" width="100">
-        <template #default="{ row }">
-          <el-tag :type="row.isOff ? 'info' : 'success'">{{ row.isOff ? '休息' : '上班' }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="180" fixed="right">
-        <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="danger" @click="onDelete(row)">删除</el-button>
-        </template>
-      </el-table-column>
-    </el-table></div>
+    <div class="records" v-loading="loading">
+      <div class="table-scroll desktop-table">
+        <el-table :data="shifts" stripe>
+          <el-table-column label="颜色" width="80">
+            <template #default="{ row }">
+              <span class="color-dot" :style="{ background: row.color }" />
+            </template>
+          </el-table-column>
+          <el-table-column prop="name" label="班次名称" min-width="140" />
+          <el-table-column label="时间" min-width="180">
+            <template #default="{ row }">
+              <span v-if="row.isOff">休息</span>
+              <span v-else>{{ row.startTime }} - {{ row.endTime }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="sortOrder" label="排序" width="90" />
+          <el-table-column label="类型" width="100">
+            <template #default="{ row }">
+              <el-tag :type="row.isOff ? 'info' : 'success'">{{ row.isOff ? '休息' : '上班' }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="180" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+              <el-button link type="danger" @click="onDelete(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <div class="mobile-list" aria-label="班次列表">
+        <div v-for="row in shifts" :key="row.id" class="mobile-record shift-record">
+          <div class="record-header">
+            <div class="record-identity">
+              <span class="color-dot" :style="{ background: row.color }" />
+              <div>
+                <div class="record-name">{{ row.name }}</div>
+                <div class="record-description">
+                  <span v-if="row.isOff">休息班</span>
+                  <span v-else>{{ row.startTime }} - {{ row.endTime }}</span>
+                </div>
+              </div>
+            </div>
+            <el-tag size="small" :type="row.isOff ? 'info' : 'success'">
+              {{ row.isOff ? '休息' : '上班' }}
+            </el-tag>
+          </div>
+          <div class="record-footer">
+            <span class="record-meta">排序 {{ row.sortOrder }}</span>
+            <div class="record-actions">
+              <el-button link type="primary" class="mobile-action" @click="openEdit(row)">编辑</el-button>
+              <el-button link type="danger" class="mobile-action" @click="onDelete(row)">删除</el-button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <el-dialog v-model="dialogVisible" :title="editingId ? '编辑班次' : '新增班次'" class="responsive-dialog" width="520px">
       <el-form label-width="96px" class="mobile-form">
