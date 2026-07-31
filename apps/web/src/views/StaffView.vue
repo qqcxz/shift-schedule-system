@@ -150,7 +150,9 @@ import {
   type User,
 } from '../api';
 import { onRealtime } from '../realtime';
+import { useAuthStore } from '../stores/auth';
 
+const auth = useAuthStore();
 const loading = ref(false);
 const saving = ref(false);
 const dialogVisible = ref(false);
@@ -217,12 +219,13 @@ async function onSave() {
   saving.value = true;
   try {
     if (editingId.value) {
-      await updateUserApi(editingId.value, {
+      const { data } = await updateUserApi(editingId.value, {
         displayName: form.displayName.trim(),
         username: form.username.trim(),
         role: form.role,
         password: form.password || undefined,
       });
+      auth.syncUser(data);
       ElMessage.success('员工信息已更新');
     } else {
       await createUserApi({

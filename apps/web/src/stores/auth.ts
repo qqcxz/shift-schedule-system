@@ -37,6 +37,12 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  function syncUser(nextUser: User) {
+    if (user.value?.id !== nextUser.id) return;
+    user.value = nextUser;
+    localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+  }
+
   function logout() {
     token.value = '';
     user.value = null;
@@ -52,6 +58,7 @@ export const useAuthStore = defineStore('auth', () => {
     isLoggedIn,
     login,
     restore,
+    syncUser,
     logout,
   };
 });
