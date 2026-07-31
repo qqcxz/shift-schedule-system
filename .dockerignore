@@ -1,0 +1,17 @@
+.git
+.github
+.tools
+node_modules
+data
+*.sqlite
+*.db
+apps/server/src
+apps/server/dist
+apps/web/dist
+apps/server/data
+*.log
+coverage
+.env
+.env.*
+!.env.example
+*.local

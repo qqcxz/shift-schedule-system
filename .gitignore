@@ -1,6 +1,8 @@
 node_modules
 dist
 .env
+.env.*
+!.env.example
 *.local
 .DS_Store
 apps/server/data
@@ -8,6 +10,8 @@ apps/web/dist
 data
 *.db
 *.sqlite
+*.sqlite-*
+*.db-*
 coverage
 .idea
 .vscode
@@ -15,6 +19,13 @@ coverage
 server-*.log
 web-*.log
 npm-install.log
+*.exe
+*.pem
+*.key
+*.crt
+*.p12
+apps/server/shift-server
+apps/server/server
 
 .tools/
 

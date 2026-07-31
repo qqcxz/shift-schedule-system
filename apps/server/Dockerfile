@@ -1,19 +1,23 @@
-FROM node:22-alpine AS builder
-WORKDIR /app
-COPY package.json package-lock.json ./
-COPY apps/server/package.json apps/server/package.json
-RUN npm install --workspace=@shift/server --include-workspace-root
-COPY apps/server apps/server
-RUN npm run build -w @shift/server
+FROM golang:1.24-alpine AS builder
+WORKDIR /src/apps/server
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+COPY apps/server/go.mod apps/server/go.sum ./
+RUN go mod download
+COPY apps/server/cmd ./cmd
+COPY apps/server/internal ./internal
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-s -w" -o /out/shift-server ./cmd/server
 
-FROM node:22-alpine
+FROM alpine:3.22
+RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/package-lock.json ./package-lock.json
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/apps/server/package.json ./apps/server/package.json
-COPY --from=builder /app/apps/server/dist ./apps/server/dist
-WORKDIR /app/apps/server
+ENV PORT=3000 \
+    DB_TYPE=sqlite \
+    WEB_DIST=/app/public \
+    SEED_ON_BOOT=false
+COPY --from=builder /out/shift-server /app/shift-server
+RUN mkdir -p /app/data
+VOLUME ["/app/data"]
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD wget -qO- http://127.0.0.1:3000/api/health || exit 1
+ENTRYPOINT ["/app/shift-server"]

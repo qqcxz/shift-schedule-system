@@ -3,7 +3,7 @@
 店长可按月设置排班，店员可查看排班并提交调休 / 调班 / 改班申请；店长审批通过后，排班表会自动更新，并通过 WebSocket 实时同步到所有在线客户端。
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![Stack](https://img.shields.io/badge/stack-Vue3%20%2B%20NestJS-42b883)](#技术栈)
+[![Stack](https://img.shields.io/badge/stack-Vue3%20%2B%20Go-42b883)](#技术栈)
 [![Realtime](https://img.shields.io/badge/realtime-Socket.IO-black)](#实时同步)
 
 ---
@@ -32,7 +32,7 @@
 - **实时同步**
   - WebSocket 推送排班变更、申请创建、审批结果、站内消息
 - **开箱即用**
-  - 本地默认 `sql.js`，无需安装 MySQL
+  - 本地默认纯 Go SQLite，无需安装 MySQL
   - 首次启动自动初始化演示门店、账号、班次和当月排班
 
 ---
@@ -42,9 +42,9 @@
 | 层级 | 技术 |
 |------|------|
 | 前端 | Vue 3、Vite、Element Plus、Pinia、Vue Router、Axios、Socket.IO Client |
-| 后端 | NestJS、TypeORM、JWT、Passport、class-validator、Socket.IO |
-| 数据库 | 开发：sql.js；生产：MySQL 8 |
-| 部署 | Docker Compose、Nginx |
+| 后端 | Go、SQLite/MySQL、JWT、Socket.IO v4 |
+| 数据库 | 开发：SQLite；生产：MySQL 8（表结构兼容旧 sql.js 文件） |
+| 部署 | Docker 多阶段构建、Docker Compose、Nginx（可选） |
 
 ---
 
@@ -52,7 +52,7 @@
 
 ```text
 浏览器 / H5 / 微信小程序
-  ├─ REST  ──► NestJS API  ──► sql.js / MySQL
+  ├─ REST  ──► Go API  ──► SQLite / MySQL
   └─ WS    ──► Socket.IO   ──► 实时事件广播（Web 完整支持，小程序尽力连接 + 刷新兜底）
 ```
 
@@ -69,19 +69,13 @@
 ```text
 .
 ├─ apps/
-│  ├─ server/                 # NestJS 后端
-│  │  ├─ src/
-│  │  │  ├─ auth/             # 登录 / JWT
-│  │  │  ├─ users/            # 用户
-│  │  │  ├─ stores/           # 门店
-│  │  │  ├─ shifts/           # 班次模板
-│  │  │  ├─ schedules/        # 排班
-│  │  │  ├─ requests/         # 调休调班申请与审批
-│  │  │  ├─ notifications/    # 消息中心
-│  │  │  └─ realtime/         # WebSocket 网关
+│  ├─ server/                 # Go 后端
+│  │  ├─ cmd/server/           # Go 程序入口
+│  │  ├─ internal/app/         # API、业务、迁移和实时服务
+│  │  ├─ go.mod / go.sum
 │  │  ├─ Dockerfile
 │  │  └─ .env.example
-│  ├─ web/                    # Vue3 前端
+│  ├─ web/                    # Vue3 前端（由 Go 服务托管生产静态文件）
 │  │  ├─ src/
 │  │  │  ├─ api/              # HTTP 接口封装
 │  │  │  ├─ views/            # 登录 / 排班 / 班次 / 员工 / 申请 / 消息
@@ -105,7 +99,8 @@
 
 ## 环境要求
 
-- Node.js 20+（推荐 22）
+- Go 1.24+
+- Node.js 20+（仅用于本地构建 Vue 前端）
 - npm 10+
 - 生产部署可选：Docker / Docker Compose
 
@@ -128,7 +123,7 @@ npm install
 
 ### 3. 配置环境变量（可选）
 
-后端默认读取 `apps/server/.env`。可直接复制示例：
+后端默认读取 `apps/server/.env`。Go 服务兼容原来的 `DB_TYPE=sqljs` 配置名，内部使用纯 Go SQLite 驱动。可直接复制示例：
 
 ```bash
 cp apps/server/.env.example apps/server/.env
@@ -138,12 +133,14 @@ cp apps/server/.env.example apps/server/.env
 
 ```env
 PORT=3000
-DB_TYPE=sqljs
+DB_TYPE=sqlite
 DB_DATABASE=./data/shift.sqlite
 JWT_SECRET=dev-secret-change-me
 CORS_ORIGIN=http://localhost:5173
 SEED_ON_BOOT=true
 ```
+
+上述配置仅用于本地演示。生产环境必须显式设置强随机 `JWT_SECRET`；使用 MySQL 时建议关闭自动 seed，避免写入公开的演示账号。
 
 ### 4. 启动开发环境
 
@@ -239,8 +236,10 @@ npm run dev          # 同时启动前后端
 npm run dev:server   # 仅后端
 npm run dev:web      # 仅前端
 npm run build        # 构建前后端
-npm run start:server # 启动已构建的后端
+npm run start:server # 运行本地 Go 后端
 ```
+
+生产构建后的 Go 服务会托管 `WEB_DIST` 指定的前端静态文件，并通过 `/api` 和 `/socket.io` 提供原有接口。
 
 ---
 
@@ -334,9 +333,11 @@ docker run -d \
   -e DB_NAME=shift_schedule \
   -e JWT_SECRET=请换成强随机字符串 \
   -e CORS_ORIGIN=http://你的服务器IP:3000 \
-  -e SEED_ON_BOOT=true \
+  -e SEED_ON_BOOT=false \
   shift-schedule:latest
 ```
+
+空库首次初始化时，改为显式传入 `SEED_ON_BOOT=true`、`SEED_MANAGER_PASSWORD` 和 `SEED_STAFF_PASSWORD`，且两个 seed 密码至少 12 个字符；初始化后改密并关闭 seed。
 
 访问：
 
@@ -359,19 +360,30 @@ docker pull ghcr.io/qqcxz/shift-schedule-system:latest
 项目也提供 `docker-compose.yml`，包含：
 
 - `mysql`
-- `redis`（预留）
-- `server`（NestJS）
-- `web`（Nginx + 前端静态资源）
+- `server`（Go API + Socket.IO + 前端静态资源）
 
 ```bash
-docker compose up -d --build
+docker compose up -d --build --remove-orphans
 ```
+
+`--remove-orphans` 用于清理旧版本的独立 `web` 容器；不要加 `-v`，这样可以保留 MySQL 和 SQLite 数据卷。
+
+Compose 不再默认启动未使用的 Redis，也不会内置数据库密码。请在仓库根目录的未跟踪 `.env` 中至少设置：
+
+```env
+MYSQL_ROOT_PASSWORD=替换为强随机密码
+MYSQL_PASSWORD=替换为强随机密码
+JWT_SECRET=替换为至少 32 字节的强随机字符串
+SEED_ON_BOOT=false
+```
+
+首次使用空 MySQL 数据库时，如需自动创建演示账号，临时设置 `SEED_ON_BOOT=true`、`SEED_MANAGER_PASSWORD` 和 `SEED_STAFF_PASSWORD`（均至少 12 个字符），完成首次登录和改密后再改回 `false`。
 
 默认访问：
 
-- 前端：http://服务器IP
-- API：http://服务器IP/api
-- WebSocket：http://服务器IP/socket.io
+- 前端：http://服务器IP:3000
+- API：http://服务器IP:3000/api
+- WebSocket：http://服务器IP:3000/socket.io
 
 ### 生产环境变量示例
 
@@ -385,24 +397,45 @@ DB_PASSWORD=你的密码
 DB_NAME=shift_schedule
 JWT_SECRET=请换成强随机字符串
 CORS_ORIGIN=http://你的服务器IP:3000
-SEED_ON_BOOT=true
+SEED_ON_BOOT=false
 ```
 
 建议上线前：
 
-1. 修改默认密码和 `JWT_SECRET`
+1. 使用至少 32 字节的随机值设置 `JWT_SECRET`，数据库密码不要写入仓库
 2. 配置 HTTPS（可用宝塔网站反代 / Nginx / Caddy）
-3. 修改默认店长密码，并关闭或限制初始演示店员（`SEED_ON_BOOT=false` 可阻止空库自动种子）
+3. 生产默认关闭 `SEED_ON_BOOT`；首次初始化时使用强随机 seed 密码，登录后立即改密并关闭 seed
 4. 定期备份 MySQL
+
+### 容器更新与数据保留
+
+单容器使用 MySQL 时，数据库在容器外，更新镜像不会触碰业务数据。若使用内置 SQLite，请务必挂载 `/app/data`：
+
+```bash
+docker volume create shift-schedule-data
+docker run -d --name shift-schedule \
+  --restart unless-stopped -p 3000:3000 \
+  -v shift-schedule-data:/app/data \
+  -e DB_TYPE=sqlite -e DB_DATABASE=/app/data/shift.sqlite \
+  -e JWT_SECRET=请替换为随机长字符串 \
+  ghcr.io/qqcxz/shift-schedule-system:latest
+```
+
+升级时先备份 MySQL 或 `/app/data`，再拉取新镜像，停止并删除旧容器后用相同环境变量和挂载重新创建。Go 服务启动时会自动执行幂等迁移并保留已有表数据；不要执行 `docker volume prune`。
+
+从最早版 NestJS 数据库升级时，旧店长用户名可能仍是 `manager`。为避免在关闭 seed 的生产环境中擅自修改账号，`SEED_ON_BOOT=false` 会保留该用户名；如需迁移为新的 `qqcxz` 用户名，请在首次升级时临时开启 seed 并设置强随机的 `SEED_MANAGER_PASSWORD`，完成登录后立即关闭 seed。
+
+新服务默认使用 `/app/data/shift.sqlite`，并会在新路径为空时识别旧版镜像的 `/app/apps/server/data/shift.sqlite` 文件。
 
 ### 方式三：纯手动部署（不用 Docker）
 
 ```bash
-# 构建
+# 构建前端和 Go 后端
+npm install
 npm run build
 
-# 启动后端（会同时托管 apps/web/dist 静态资源）
-WEB_DIST=apps/web/dist npm run start:server
+# 启动 Go 后端（会同时托管 apps/web/dist 静态资源）
+WEB_DIST=apps/web/dist DB_TYPE=sqlite DB_DATABASE=./data/shift.sqlite npm run start:server
 
 # 也可继续用 Nginx 托管静态资源，并将 /api 与 /socket.io 反代到后端
 ```
@@ -413,8 +446,11 @@ WEB_DIST=apps/web/dist npm run start:server
 - 只有店长可以正式修改排班
 - 店员不能直接改表，只能提交申请
 - 审批通过后才会改动正式排班
+- 申请当前按单日处理；多日 `toDate` 区间会被明确拒绝，避免只修改首日造成误解
+- 跨午夜班次暂不支持，请拆分为相邻日期的班次
 - 排班保存使用 `version` 做乐观锁，降低并发覆盖风险
 - 同门店数据隔离（按 `storeId`）
+- 排班月份和 seed 示例数据使用服务进程的本地时区；当前没有单独的门店时区配置
 - 本地开发默认自动 seed；生产可按需关闭 `SEED_ON_BOOT`
 
 ---
@@ -423,18 +459,19 @@ WEB_DIST=apps/web/dist npm run start:server
 
 ### monorepo
 
-使用 npm workspaces：
+前端使用 npm workspace，后端使用独立 Go module：
 
-- `@shift/server`
 - `@shift/web`
 
 ### 本地数据库
 
-开发环境默认使用 `sql.js`，数据库文件路径：
+从仓库根目录执行 `npm run dev:server` 时，开发环境默认使用 SQLite，数据库文件路径：
 
 ```text
-apps/server/data/shift.sqlite
+data/shift.sqlite
 ```
+
+如果直接在 `apps/server` 目录启动 Go 服务，相对路径会以该目录为基准。
 
 如需清空演示数据，删除该文件后重启后端即可重新初始化。
 
@@ -456,7 +493,7 @@ apps/server/data/shift.sqlite
 - 工时统计 / 加班统计
 - Excel 导出
 - 企业微信 / 短信通知
-- 微信小程序店员端
+- 微信小程序更完整的实时适配
 
 ---
 
@@ -485,8 +522,8 @@ http://localhost:3000/api/health
 ### 修改代码后如何重新初始化数据？
 
 1. 停止后端
-2. 删除 `apps/server/data/shift.sqlite`
-3. 重新启动后端
+2. 备份并删除当前工作目录下的 `data/shift.sqlite`
+3. 重新启动 Go 后端，空库会重新初始化演示数据
 
 ---
 

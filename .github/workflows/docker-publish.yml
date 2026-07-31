@@ -20,7 +20,51 @@ env:
   IMAGE_NAME: shift-schedule-system
 
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/server/go.mod
+          cache: true
+
+      - name: Check module files
+        working-directory: apps/server
+        run: go mod tidy -diff
+
+      - name: Test
+        working-directory: apps/server
+        run: go test ./...
+
+      - name: Race test
+        working-directory: apps/server
+        run: go test -race ./...
+
+      - name: Vet
+        working-directory: apps/server
+        run: go vet ./...
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check web
+        run: npx vue-tsc --noEmit -p apps/web/tsconfig.json
+
+      - name: Build web
+        run: npm run build -w @shift/web
+
   build-and-push:
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
