@@ -140,7 +140,7 @@ CORS_ORIGIN=http://localhost:5173
 SEED_ON_BOOT=true
 ```
 
-上述配置仅用于本地演示。生产环境必须显式设置强随机 `JWT_SECRET`；使用 MySQL 时建议关闭自动 seed，避免写入公开的演示账号。
+上述配置仅用于本地演示。生产环境必须显式设置强随机 `JWT_SECRET`；使用 MySQL 时可保持 seed 开启，空库只初始化一次，店长首次登录会强制改密。
 
 ### 4. 启动开发环境
 
@@ -179,6 +179,8 @@ npm run dev:web
 | 店员 | `staff1` | `123456` | 初始店员（可在员工管理中修改/停用） |
 | 店员 | `staff2` | `123456` | 初始店员（可在员工管理中修改/停用） |
 | 店员 | `staff3` | `123456` | 初始店员（可在员工管理中修改/停用） |
+
+店长首次登录会强制设置新密码，密码长度为 6 到 64 位。
 
 初始化内容包括：
 
@@ -333,11 +335,13 @@ docker run -d \
   -e DB_NAME=shift_schedule \
   -e JWT_SECRET=请换成强随机字符串 \
   -e CORS_ORIGIN=http://你的服务器IP:3000 \
-  -e SEED_ON_BOOT=false \
+  -e SEED_ON_BOOT=true \
   shift-schedule:latest
 ```
 
-空库首次初始化时，改为显式传入 `SEED_ON_BOOT=true`、`SEED_MANAGER_PASSWORD` 和 `SEED_STAFF_PASSWORD`，且两个 seed 密码至少 12 个字符；初始化后改密并关闭 seed。
+空库首次初始化会自动 seed，`SEED_ON_BOOT` 默认开启且只在 `users` 表为空时创建一次账号。店长第一次登录会被强制带到改密页面，完成后不需要再关闭 seed。
+
+`SEED_MANAGER_PASSWORD` 和 `SEED_STAFF_PASSWORD` 是可选的初始登录密码，不是 MySQL 连接密码；未设置时默认使用 6 位的 `123456`，店长首次登录必须修改。自定义密码至少 6 位。`SEED_ON_BOOT=false` 仍可用于明确禁用空库 seed。
 
 访问：
 
@@ -374,10 +378,10 @@ Compose 不再默认启动未使用的 Redis，也不会内置数据库密码。
 MYSQL_ROOT_PASSWORD=替换为强随机密码
 MYSQL_PASSWORD=替换为强随机密码
 JWT_SECRET=替换为至少 32 字节的强随机字符串
-SEED_ON_BOOT=false
+SEED_ON_BOOT=true
 ```
 
-首次使用空 MySQL 数据库时，如需自动创建演示账号，临时设置 `SEED_ON_BOOT=true`、`SEED_MANAGER_PASSWORD` 和 `SEED_STAFF_PASSWORD`（均至少 12 个字符），完成首次登录和改密后再改回 `false`。
+首次使用空 MySQL 数据库时保持 `SEED_ON_BOOT=true` 即可；seed 只在没有用户时执行一次。可选设置两个初始密码，密码至少 6 位。店长首次登录会强制改密，之后不需要修改 seed 开关。
 
 默认访问：
 
@@ -397,14 +401,14 @@ DB_PASSWORD=你的密码
 DB_NAME=shift_schedule
 JWT_SECRET=请换成强随机字符串
 CORS_ORIGIN=http://你的服务器IP:3000
-SEED_ON_BOOT=false
+SEED_ON_BOOT=true
 ```
 
 建议上线前：
 
 1. 使用至少 32 字节的随机值设置 `JWT_SECRET`，数据库密码不要写入仓库
 2. 配置 HTTPS（可用宝塔网站反代 / Nginx / Caddy）
-3. 生产默认关闭 `SEED_ON_BOOT`；首次初始化时使用强随机 seed 密码，登录后立即改密并关闭 seed
+3. 保持 `SEED_ON_BOOT=true` 让空库自动初始化；店长首次登录时强制修改密码
 4. 定期备份 MySQL
 
 ### 容器更新与数据保留
@@ -423,7 +427,7 @@ docker run -d --name shift-schedule \
 
 升级时先备份 MySQL 或 `/app/data`，再拉取新镜像，停止并删除旧容器后用相同环境变量和挂载重新创建。Go 服务启动时会自动执行幂等迁移并保留已有表数据；不要执行 `docker volume prune`。
 
-从最早版 NestJS 数据库升级时，旧店长用户名可能仍是 `manager`。为避免在关闭 seed 的生产环境中擅自修改账号，`SEED_ON_BOOT=false` 会保留该用户名；如需迁移为新的 `qqcxz` 用户名，请在首次升级时临时开启 seed 并设置强随机的 `SEED_MANAGER_PASSWORD`，完成登录后立即关闭 seed。
+从最早版 NestJS 数据库升级时，旧店长用户名可能仍是 `manager`。设置 `SEED_ON_BOOT=true` 时服务会执行一次兼容迁移并将店长带入首次改密流程；如果明确设置为 `false`，则保留旧用户名和密码。
 
 新服务默认使用 `/app/data/shift.sqlite`，并会在新路径为空时识别旧版镜像的 `/app/apps/server/data/shift.sqlite` 文件。
 

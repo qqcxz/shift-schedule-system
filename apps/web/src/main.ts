@@ -5,10 +5,16 @@ import 'element-plus/dist/index.css';
 import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import App from './App.vue';
 import router from './router';
+import { useAuthStore } from './stores/auth';
 import './styles/main.css';
 
 const app = createApp(App);
-app.use(createPinia());
+const pinia = createPinia();
+app.use(pinia);
 app.use(router);
 app.use(ElementPlus, { locale: zhCn });
-app.mount('#app');
+
+const auth = useAuthStore(pinia);
+auth.restore().finally(() => {
+  app.mount('#app');
+});

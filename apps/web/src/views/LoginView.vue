@@ -56,7 +56,7 @@ async function onSubmit() {
   try {
     await auth.login(form.username.trim(), form.password);
     ElMessage.success('登录成功');
-    router.push('/schedule');
+    router.push(auth.mustChangePassword ? '/change-password' : '/schedule');
   } catch (error) {
     ElMessage.error((error as Error).message);
   } finally {

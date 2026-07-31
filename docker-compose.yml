@@ -11,7 +11,7 @@ services:
       - mysql_data:/var/lib/mysql
     ports:
       - "127.0.0.1:3306:3306"
-    command: ["--default-authentication-plugin=mysql_native_password", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
@@ -33,7 +33,7 @@ services:
       DB_NAME: ${MYSQL_DATABASE:-shift_schedule}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env before starting Compose}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-      SEED_ON_BOOT: ${SEED_ON_BOOT:-false}
+      SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
       SEED_MANAGER_USERNAME: ${SEED_MANAGER_USERNAME:-qqcxz}
       SEED_MANAGER_PASSWORD: ${SEED_MANAGER_PASSWORD:-}
       SEED_STAFF_PASSWORD: ${SEED_STAFF_PASSWORD:-}

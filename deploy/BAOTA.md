@@ -51,18 +51,20 @@ DB_PASSWORD=你在宝塔创建的数据库密码
 DB_NAME=shift_schedule
 JWT_SECRET=请改成很长的随机字符串
 CORS_ORIGIN=http://你的服务器IP:3000
-SEED_ON_BOOT=false
+SEED_ON_BOOT=true
 WEB_DIST=/app/public
 ```
 
-生产环境不要使用仓库内置的演示密码。首次初始化空库时临时增加以下变量，并在首次登录改密后关闭 seed：
+空库会自动初始化，seed 只在 `users` 表为空时执行一次。店长第一次登录会强制进入改密页面，完成后不需要再把 seed 改回 `false`。如需自定义初始密码，可填写：
 
 ```text
 SEED_ON_BOOT=true
 SEED_MANAGER_USERNAME=qqcxz
-SEED_MANAGER_PASSWORD=至少 12 个字符的随机密码
-SEED_STAFF_PASSWORD=至少 12 个字符的随机密码
+SEED_MANAGER_PASSWORD=至少 6 个字符的初始密码
+SEED_STAFF_PASSWORD=至少 6 个字符的初始密码
 ```
+
+两个 `SEED_*` 变量不是 MySQL 连接密码，未填写时默认使用 `123456`；`SEED_ON_BOOT=false` 仍可用于明确禁用空库 seed。
 
 生产环境推荐 MySQL。若 `172.17.0.1` 连不上 MySQL，把 `DB_HOST` 改成 `host.docker.internal`，并用命令行加：
 
@@ -87,7 +89,7 @@ docker run -d \
   -e DB_NAME=shift_schedule \
   -e JWT_SECRET=请改成随机字符串 \
   -e CORS_ORIGIN=http://你的服务器IP:3000 \
-  -e SEED_ON_BOOT=false \
+  -e SEED_ON_BOOT=true \
   shift-schedule:latest
 ```
 
@@ -96,7 +98,7 @@ docker run -d \
 - 浏览器：`http://服务器IP:3000`
 - 健康检查：`http://服务器IP:3000/api/health`
 
-首次 seed 账号（仅在显式设置 `SEED_ON_BOOT=true` 和两个 seed 密码变量时创建）：
+首次 seed 账号（仅在 `users` 表为空且 `SEED_ON_BOOT=true` 时创建）：
 
 | 账号 | 密码 | 角色 |
 |------|------|------|
@@ -113,10 +115,10 @@ DB_TYPE=sqlite
 DB_DATABASE=/app/data/shift.sqlite
 JWT_SECRET=随机字符串
 CORS_ORIGIN=http://你的服务器IP:3000
-SEED_ON_BOOT=false
+SEED_ON_BOOT=true
 ```
 
-若 SQLite 为空且需要初始化演示数据，临时设置 `SEED_ON_BOOT=true`、`SEED_MANAGER_PASSWORD` 和 `SEED_STAFF_PASSWORD`，登录后改密并关闭 seed。
+SQLite 为空时保持 `SEED_ON_BOOT=true` 即可初始化；店长首次登录会强制改密。
 
 挂载（必须）：
 

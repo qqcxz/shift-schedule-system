@@ -21,16 +21,17 @@ const (
 )
 
 type User struct {
-	ID           string `json:"id"`
-	Username     string `json:"username"`
-	DisplayName  string `json:"displayName"`
-	PasswordHash string `json:"-"`
-	Role         string `json:"role"`
-	StoreID      string `json:"storeId"`
-	IsActive     bool   `json:"isActive"`
-	AuthVersion  int    `json:"-"`
-	CreatedAt    DBTime `json:"-"`
-	UpdatedAt    DBTime `json:"-"`
+	ID                 string `json:"id"`
+	Username           string `json:"username"`
+	DisplayName        string `json:"displayName"`
+	PasswordHash       string `json:"-"`
+	Role               string `json:"role"`
+	StoreID            string `json:"storeId"`
+	IsActive           bool   `json:"isActive"`
+	MustChangePassword bool   `json:"mustChangePassword,omitempty"`
+	AuthVersion        int    `json:"-"`
+	CreatedAt          DBTime `json:"-"`
+	UpdatedAt          DBTime `json:"-"`
 }
 
 type Store struct {

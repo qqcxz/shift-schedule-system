@@ -7,6 +7,7 @@ import RequestsView from '../views/RequestsView.vue';
 import NotificationsView from '../views/NotificationsView.vue';
 import ShiftsView from '../views/ShiftsView.vue';
 import StaffView from '../views/StaffView.vue';
+import ChangePasswordView from '../views/ChangePasswordView.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -16,6 +17,11 @@ const router = createRouter({
       name: 'login',
       component: LoginView,
       meta: { public: true },
+    },
+    {
+      path: '/change-password',
+      name: 'change-password',
+      component: ChangePasswordView,
     },
     {
       path: '/',
@@ -48,6 +54,12 @@ router.beforeEach(async (to) => {
     return '/login';
   }
   if (to.path === '/login' && auth.isLoggedIn) {
+    return auth.mustChangePassword ? '/change-password' : '/schedule';
+  }
+  if (auth.mustChangePassword && to.path !== '/change-password') {
+    return '/change-password';
+  }
+  if (to.path === '/change-password' && !auth.mustChangePassword) {
     return '/schedule';
   }
   if (to.meta.managerOnly && !auth.isManager) {

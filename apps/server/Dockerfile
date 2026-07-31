@@ -14,7 +14,7 @@ WORKDIR /app
 ENV PORT=3000 \
     DB_TYPE=sqlite \
     WEB_DIST=/app/public \
-    SEED_ON_BOOT=false
+    SEED_ON_BOOT=true
 COPY --from=builder /out/shift-server /app/shift-server
 RUN mkdir -p /app/data
 VOLUME ["/app/data"]

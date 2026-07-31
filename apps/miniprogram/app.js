@@ -23,7 +23,7 @@ App({
     this.globalData.token = token || '';
     this.globalData.user = user || null;
 
-    if (token) {
+    if (token && !(user && user.mustChangePassword)) {
       connectSocket(token);
     }
   },
@@ -37,7 +37,7 @@ App({
   setAuth(token, user) {
     this.globalData.token = token || '';
     this.globalData.user = user || null;
-    if (token) {
+    if (token && !(user && user.mustChangePassword)) {
       connectSocket(token);
     } else {
       disconnectSocket();

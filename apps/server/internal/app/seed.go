@@ -60,7 +60,7 @@ func seedIfEmpty(ctx context.Context, db *sql.DB, cfg Config) error {
 	if _, err := tx.ExecContext(ctx, "INSERT INTO `stores` (`id`, `name`, `address`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?, ?)", storeID, "示例门店", "示例路 1 号", now, now); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, "INSERT INTO `users` (`id`, `username`, `displayName`, `passwordHash`, `role`, `storeId`, `isActive`, `authVersion`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)", managerID, managerUsername, "店长", string(managerHash), RoleManager, storeID, true, now, now); err != nil {
+	if _, err := tx.ExecContext(ctx, "INSERT INTO `users` (`id`, `username`, `displayName`, `passwordHash`, `role`, `storeId`, `isActive`, `authVersion`, `mustChangePassword`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)", managerID, managerUsername, "店长", string(managerHash), RoleManager, storeID, true, now, now); err != nil {
 		return err
 	}
 
@@ -73,7 +73,7 @@ func seedIfEmpty(ctx context.Context, db *sql.DB, cfg Config) error {
 	for _, definition := range staffDefs {
 		id := uuid.NewString()
 		staffIDs = append(staffIDs, id)
-		if _, err := tx.ExecContext(ctx, "INSERT INTO `users` (`id`, `username`, `displayName`, `passwordHash`, `role`, `storeId`, `isActive`, `authVersion`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)", id, definition.username, definition.displayName, string(staffHash), RoleStaff, storeID, true, now, now); err != nil {
+		if _, err := tx.ExecContext(ctx, "INSERT INTO `users` (`id`, `username`, `displayName`, `passwordHash`, `role`, `storeId`, `isActive`, `authVersion`, `mustChangePassword`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?)", id, definition.username, definition.displayName, string(staffHash), RoleStaff, storeID, true, now, now); err != nil {
 			return err
 		}
 	}
@@ -124,12 +124,20 @@ func seedIfEmpty(ctx context.Context, db *sql.DB, cfg Config) error {
 func migrateLegacyManager(ctx context.Context, db *sql.DB, managerUsername, managerPassword string) error {
 	current, err := findUserByUsername(ctx, db, managerUsername)
 	if err == nil {
-		if bcrypt.CompareHashAndPassword([]byte(current.PasswordHash), []byte("200395ljf")) == nil {
+		initialPasswords := []string{defaultManagerPassword, "200395ljf", managerPassword}
+		needsPasswordChange := false
+		for _, initialPassword := range initialPasswords {
+			if bcrypt.CompareHashAndPassword([]byte(current.PasswordHash), []byte(initialPassword)) == nil {
+				needsPasswordChange = true
+				break
+			}
+		}
+		if needsPasswordChange {
 			hash, hashErr := bcrypt.GenerateFromPassword([]byte(managerPassword), 10)
 			if hashErr != nil {
 				return hashErr
 			}
-			_, err = db.ExecContext(ctx, "UPDATE `users` SET `passwordHash` = ?, `authVersion` = `authVersion` + 1, `updatedAt` = ? WHERE `id` = ?", string(hash), nowDB(), current.ID)
+			_, err = db.ExecContext(ctx, "UPDATE `users` SET `passwordHash` = ?, `mustChangePassword` = 1, `authVersion` = `authVersion` + 1, `updatedAt` = ? WHERE `id` = ?", string(hash), nowDB(), current.ID)
 		}
 		return err
 	}
@@ -152,6 +160,6 @@ func migrateLegacyManager(ctx context.Context, db *sql.DB, managerUsername, mana
 	if displayName == "" {
 		displayName = "店长"
 	}
-	_, err = db.ExecContext(ctx, "UPDATE `users` SET `username` = ?, `displayName` = ?, `role` = ?, `isActive` = 1, `passwordHash` = ?, `authVersion` = `authVersion` + 1, `updatedAt` = ? WHERE `id` = ?", managerUsername, displayName, RoleManager, string(hash), nowDB(), legacy.ID)
+	_, err = db.ExecContext(ctx, "UPDATE `users` SET `username` = ?, `displayName` = ?, `role` = ?, `isActive` = 1, `passwordHash` = ?, `mustChangePassword` = 1, `authVersion` = `authVersion` + 1, `updatedAt` = ? WHERE `id` = ?", managerUsername, displayName, RoleManager, string(hash), nowDB(), legacy.ID)
 	return err
 }

@@ -18,7 +18,7 @@ type dbRunner interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
-const userColumns = "`id`, `username`, `displayName`, `passwordHash`, `role`, `storeId`, `isActive`, `authVersion`, `createdAt`, `updatedAt`"
+const userColumns = "`id`, `username`, `displayName`, `passwordHash`, `role`, `storeId`, `isActive`, `authVersion`, `mustChangePassword`, `createdAt`, `updatedAt`"
 
 func scanUser(row scanner) (User, error) {
 	var user User
@@ -31,6 +31,7 @@ func scanUser(row scanner) (User, error) {
 		&user.StoreID,
 		&user.IsActive,
 		&user.AuthVersion,
+		&user.MustChangePassword,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)

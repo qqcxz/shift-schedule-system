@@ -125,7 +125,7 @@
         <input class="input" password value="{{passwordForm.confirmPassword}}" bindinput="onConfirmPassword" placeholder="再次输入新密码" />
       </view>
       <view class="actions row gap">
-        <button size="mini" bindtap="closePassword">取消</button>
+        <button wx:if="{{!passwordRequired}}" size="mini" bindtap="closePassword">取消</button>
         <button size="mini" class="btn-primary" loading="{{passwordSaving}}" bindtap="onChangePassword">保存</button>
       </view>
     </view>

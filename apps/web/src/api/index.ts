@@ -7,6 +7,7 @@ export type User = {
   role: 'manager' | 'staff';
   storeId: string;
   isActive?: boolean;
+  mustChangePassword?: boolean;
 };
 
 export type ShiftTemplate = {

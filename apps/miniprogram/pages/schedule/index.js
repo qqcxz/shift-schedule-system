@@ -22,6 +22,7 @@ Page({
     rows: [],
     showPassword: false,
     passwordSaving: false,
+    passwordRequired: false,
     passwordForm: {
       currentPassword: '',
       newPassword: '',
@@ -43,11 +44,15 @@ Page({
     }
 
     const month = this.data.month || require('../../utils/date').formatMonth(new Date());
+    const passwordRequired = !!user.mustChangePassword;
     this.setData({
       month,
       isManager: isManager(user),
       userName: user.displayName || user.username,
+      passwordRequired,
+      showPassword: passwordRequired,
     });
+    if (passwordRequired) return;
     this.loadAll();
   },
 
@@ -91,6 +96,7 @@ Page({
   },
 
   closePassword() {
+    if (this.data.passwordRequired) return;
     this.setData({ showPassword: false });
   },
 

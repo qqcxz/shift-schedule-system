@@ -15,6 +15,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isManager = computed(() => user.value?.role === 'manager');
   const isLoggedIn = computed(() => Boolean(token.value && user.value));
+  const mustChangePassword = computed(() => Boolean(user.value?.mustChangePassword));
 
   async function login(username: string, password: string) {
     const { data } = await loginApi(username, password);
@@ -22,7 +23,11 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = data.user;
     localStorage.setItem(TOKEN_KEY, data.accessToken);
     localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-    connectSocket(data.accessToken);
+    if (data.user.mustChangePassword) {
+      disconnectSocket();
+    } else {
+      connectSocket(data.accessToken);
+    }
   }
 
   async function restore() {
@@ -31,7 +36,11 @@ export const useAuthStore = defineStore('auth', () => {
       const { data } = await meApi();
       user.value = data;
       localStorage.setItem(USER_KEY, JSON.stringify(data));
-      connectSocket(token.value);
+      if (data.mustChangePassword) {
+        disconnectSocket();
+      } else {
+        connectSocket(token.value);
+      }
     } catch {
       logout();
     }
@@ -55,6 +64,7 @@ export const useAuthStore = defineStore('auth', () => {
     token,
     user,
     isManager,
+    mustChangePassword,
     isLoggedIn,
     login,
     restore,

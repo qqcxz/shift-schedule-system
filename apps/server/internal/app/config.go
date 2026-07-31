@@ -43,10 +43,6 @@ func LoadConfig() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	seedOnBoot, err := envBool("SEED_ON_BOOT", true)
-	if err != nil {
-		return Config{}, err
-	}
 	if port < 1 || port > 65535 {
 		return Config{}, fmt.Errorf("PORT must be between 1 and 65535")
 	}
@@ -65,18 +61,20 @@ func LoadConfig() (Config, error) {
 	default:
 		return Config{}, fmt.Errorf("unsupported DB_TYPE %q (use sqljs, sqlite, or mysql)", dbType)
 	}
+	seedOnBoot, err := envBool("SEED_ON_BOOT", true)
+	if err != nil {
+		return Config{}, err
+	}
 
 	jwtSecret, jwtSecretProvided := configuredSecret("JWT_SECRET", "dev-secret-change-me")
 	if dbType == "mysql" && (!jwtSecretProvided || len([]byte(jwtSecret)) < 32) {
 		return Config{}, fmt.Errorf("JWT_SECRET must be explicitly set to at least 32 bytes when DB_TYPE=mysql")
 	}
 	seedManagerUsername := env("SEED_MANAGER_USERNAME", defaultManagerUsername)
-	seedManagerPassword, seedManagerPasswordProvided := configuredSecret("SEED_MANAGER_PASSWORD", defaultManagerPassword)
-	seedStaffPassword, seedStaffPasswordProvided := configuredSecret("SEED_STAFF_PASSWORD", "123456")
-	if dbType == "mysql" && seedOnBoot &&
-		(!seedManagerPasswordProvided || len([]rune(seedManagerPassword)) < 12 ||
-			!seedStaffPasswordProvided || len([]rune(seedStaffPassword)) < 12) {
-		return Config{}, fmt.Errorf("SEED_MANAGER_PASSWORD and SEED_STAFF_PASSWORD must be explicitly set to at least 12 characters when seeding MySQL")
+	seedManagerPassword, _ := configuredSecret("SEED_MANAGER_PASSWORD", defaultManagerPassword)
+	seedStaffPassword, _ := configuredSecret("SEED_STAFF_PASSWORD", "123456")
+	if seedOnBoot && (len([]rune(seedManagerPassword)) < 6 || len([]rune(seedStaffPassword)) < 6) {
+		return Config{}, fmt.Errorf("SEED_MANAGER_PASSWORD and SEED_STAFF_PASSWORD must be at least 6 characters when seeding")
 	}
 
 	return Config{

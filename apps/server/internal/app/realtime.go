@@ -68,6 +68,10 @@ func newRealtime(db *sql.DB, cfg Config) *Realtime {
 			client.Disconnect(true)
 			return
 		}
+		if claims.MustChangePassword {
+			client.Disconnect(true)
+			return
+		}
 		user := socketUser{UserID: claims.Subject, Role: claims.Role, StoreID: claims.StoreID, Username: claims.Username}
 		client.SetData(user)
 		realtime.addClient(client, user)

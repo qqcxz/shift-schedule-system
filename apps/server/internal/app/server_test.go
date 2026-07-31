@@ -16,6 +16,46 @@ import (
 	"github.com/google/uuid"
 )
 
+func TestSeedManagerMustChangePassword(t *testing.T) {
+	databasePath := fmt.Sprintf("%s/shift.sqlite", t.TempDir())
+	service, err := New(context.Background(), Config{
+		DBType:             "sqlite",
+		DBDatabase:         databasePath,
+		JWTSecret:          "test-secret",
+		SeedOnBoot:         true,
+		ScheduleKeepMonths: 12,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer service.Close()
+	server := httptest.NewServer(service.Handler())
+	defer server.Close()
+
+	response := loginTestUserResponse(t, server.URL, "qqcxz", "123456")
+	if !response.User.MustChangePassword {
+		t.Fatal("seeded manager should be required to change the initial password")
+	}
+	assertStatusTest(t, server.URL+"/api/shifts", response.AccessToken, http.MethodGet, nil, http.StatusForbidden)
+	var result map[string]bool
+	postJSONTest(t, server.URL+"/api/auth/change-password", response.AccessToken, map[string]string{
+		"currentPassword": "123456",
+		"newPassword":     "manager1",
+	}, &result, http.StatusCreated)
+	assertStatusTest(t, server.URL+"/api/auth/me", response.AccessToken, http.MethodGet, nil, http.StatusUnauthorized)
+
+	newToken := loginTestUser(t, server.URL, "qqcxz", "manager1")
+	var me User
+	getJSONTest(t, server.URL+"/api/auth/me", newToken, &me)
+	if me.MustChangePassword {
+		t.Fatal("manager should no longer require a password change")
+	}
+	assertStatusTest(t, server.URL+"/api/auth/login", "", http.MethodPost, map[string]string{
+		"username": "qqcxz",
+		"password": "12345",
+	}, http.StatusBadRequest)
+}
+
 func TestSQLiteSeedAndBusinessFlow(t *testing.T) {
 	databasePath := fmt.Sprintf("%s/shift.sqlite", t.TempDir())
 	service, err := New(context.Background(), Config{
@@ -48,7 +88,7 @@ func TestSQLiteSeedAndBusinessFlow(t *testing.T) {
 		}
 	}
 
-	managerToken := loginTestUser(t, server.URL, "qqcxz", "123456")
+	managerToken := loginTestUserAfterSeed(t, server.URL, "qqcxz", "123456")
 	staffToken := loginTestUser(t, server.URL, "staff1", "123456")
 
 	var me User
@@ -142,7 +182,7 @@ func TestSecurityAndValidationBoundaries(t *testing.T) {
 	server := httptest.NewServer(service.Handler())
 	defer server.Close()
 
-	managerToken := loginTestUser(t, server.URL, "qqcxz", "123456")
+	managerToken := loginTestUserAfterSeed(t, server.URL, "qqcxz", "123456")
 	staffToken := loginTestUser(t, server.URL, "staff1", "123456")
 
 	var users []User
@@ -212,7 +252,7 @@ func TestSecurityAndValidationBoundaries(t *testing.T) {
 	assertStatusTest(t, server.URL+"/api/auth/me", staffToken, http.MethodGet, nil, http.StatusUnauthorized)
 
 	postJSONTest(t, server.URL+"/api/auth/change-password", managerToken, map[string]any{
-		"currentPassword": "123456",
+		"currentPassword": "manager1",
 		"newPassword":     "manager-pass-2026",
 	}, &map[string]bool{}, http.StatusCreated)
 	assertStatusTest(t, server.URL+"/api/auth/me", managerToken, http.MethodGet, nil, http.StatusUnauthorized)
@@ -259,6 +299,12 @@ func TestSQLiteMigrationAddsAuthVersionToLegacySchema(t *testing.T) {
 	if columnCount != 1 {
 		t.Fatalf("expected authVersion migration, got %d columns", columnCount)
 	}
+	if err := service.db.QueryRow("SELECT COUNT(*) FROM pragma_table_info('users') WHERE name = 'mustChangePassword'").Scan(&columnCount); err != nil {
+		t.Fatal(err)
+	}
+	if columnCount != 1 {
+		t.Fatalf("expected mustChangePassword migration, got %d columns", columnCount)
+	}
 	var migrationCount int
 	if err := service.db.QueryRow("SELECT COUNT(*) FROM schema_migrations WHERE version IN (1, 2)").Scan(&migrationCount); err != nil {
 		t.Fatal(err)
@@ -270,14 +316,38 @@ func TestSQLiteMigrationAddsAuthVersionToLegacySchema(t *testing.T) {
 
 func loginTestUser(t *testing.T, base, username, password string) string {
 	t.Helper()
+	response := loginTestUserResponse(t, base, username, password)
+	return response.AccessToken
+}
+
+func loginTestUserAfterSeed(t *testing.T, base, username, password string) string {
+	t.Helper()
+	response := loginTestUserResponse(t, base, username, password)
+	if !response.User.MustChangePassword {
+		return response.AccessToken
+	}
+	var result map[string]bool
+	postJSONTest(t, base+"/api/auth/change-password", response.AccessToken, map[string]string{
+		"currentPassword": password,
+		"newPassword":     "manager1",
+	}, &result, http.StatusCreated)
+	return loginTestUser(t, base, username, "manager1")
+}
+
+func loginTestUserResponse(t *testing.T, base, username, password string) struct {
+	AccessToken string `json:"accessToken"`
+	User        User   `json:"user"`
+} {
+	t.Helper()
 	var response struct {
 		AccessToken string `json:"accessToken"`
+		User        User   `json:"user"`
 	}
 	postJSONTest(t, base+"/api/auth/login", "", map[string]string{"username": username, "password": password}, &response, http.StatusCreated)
 	if response.AccessToken == "" {
 		t.Fatal("login returned an empty token")
 	}
-	return response.AccessToken
+	return response
 }
 
 func getJSONTest(t *testing.T, url, token string, target any) {

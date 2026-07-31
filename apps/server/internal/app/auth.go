@@ -13,10 +13,11 @@ import (
 )
 
 type authClaims struct {
-	Role        string `json:"role"`
-	StoreID     string `json:"storeId"`
-	Username    string `json:"username"`
-	AuthVersion int    `json:"authVersion,omitempty"`
+	Role               string `json:"role"`
+	StoreID            string `json:"storeId"`
+	Username           string `json:"username"`
+	MustChangePassword bool   `json:"mustChangePassword,omitempty"`
+	AuthVersion        int    `json:"authVersion,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -25,10 +26,11 @@ type authContextKey struct{}
 func (s *Server) signToken(user User) (string, error) {
 	now := time.Now()
 	claims := authClaims{
-		Role:        user.Role,
-		StoreID:     user.StoreID,
-		Username:    user.Username,
-		AuthVersion: user.AuthVersion,
+		Role:               user.Role,
+		StoreID:            user.StoreID,
+		Username:           user.Username,
+		MustChangePassword: user.MustChangePassword,
+		AuthVersion:        user.AuthVersion,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   user.ID,
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -74,6 +76,9 @@ func (s *Server) authenticate(next apiHandler, roles ...string) apiHandler {
 		if err != nil {
 			return err
 		}
+		if claims.MustChangePassword && r.URL.Path != "/api/auth/me" && r.URL.Path != "/api/auth/change-password" {
+			return forbidden("首次登录请先修改密码")
+		}
 		if len(roles) > 0 {
 			allowed := false
 			for _, role := range roles {
@@ -115,6 +120,7 @@ func activeAuthClaims(ctx context.Context, runner dbRunner, claims authClaims) (
 	claims.Role = user.Role
 	claims.StoreID = user.StoreID
 	claims.Username = user.Username
+	claims.MustChangePassword = user.MustChangePassword
 	claims.AuthVersion = user.AuthVersion
 	return claims, nil
 }
@@ -130,7 +136,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	input.Username = normalizeUsername(input.Username)
-	if input.Username == "" || len([]rune(input.Password)) < 4 || len([]rune(input.Password)) > 64 {
+	if input.Username == "" || len([]rune(input.Password)) < 6 || len([]rune(input.Password)) > 64 {
 		return badRequest("用户名和密码格式不正确")
 	}
 	user, err := findUserByUsername(r.Context(), s.db, input.Username)
@@ -187,7 +193,7 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	result, err := s.db.ExecContext(r.Context(), "UPDATE `users` SET `passwordHash` = ?, `authVersion` = `authVersion` + 1, `updatedAt` = ? WHERE `id` = ?", string(hash), nowDB(), user.ID)
+	result, err := s.db.ExecContext(r.Context(), "UPDATE `users` SET `passwordHash` = ?, `mustChangePassword` = 0, `authVersion` = `authVersion` + 1, `updatedAt` = ? WHERE `id` = ?", string(hash), nowDB(), user.ID)
 	if err != nil {
 		return err
 	}

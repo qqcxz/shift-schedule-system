@@ -25,7 +25,7 @@ WORKDIR /app
 ENV PORT=3000 \
     WEB_DIST=/app/public \
     DB_TYPE=sqlite \
-    SEED_ON_BOOT=false
+    SEED_ON_BOOT=true
 COPY --from=server-builder /out/shift-server /app/shift-server
 COPY --from=web-builder /src/apps/web/dist /app/public
 RUN mkdir -p /app/data
