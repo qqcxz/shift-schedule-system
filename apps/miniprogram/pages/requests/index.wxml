@@ -4,7 +4,7 @@
       <view class="title">申请审批</view>
       <view class="row gap">
         <button size="mini" bindtap="loadRequests" loading="{{loading}}">刷新</button>
-        <button size="mini" class="btn-primary" bindtap="openCreate">新建申请</button>
+        <button wx:if="{{!isManager}}" size="mini" class="btn-primary" bindtap="openCreate">新建申请</button>
       </view>
     </view>
 

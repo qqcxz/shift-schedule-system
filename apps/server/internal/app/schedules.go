@@ -2,11 +2,14 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,6 +25,10 @@ const maxScheduleItems = 10000
 type saveMonthInput struct {
 	Month string                   `json:"month"`
 	Items []saveMonthScheduleInput `json:"items"`
+}
+
+type publishMonthInput struct {
+	Message *string `json:"message"`
 }
 
 type saveMonthScheduleInput struct {
@@ -329,6 +336,96 @@ func (s *Server) saveMonthSchedules(w http.ResponseWriter, r *http.Request) erro
 		return err
 	}
 	writeJSON(w, http.StatusOK, result)
+	return nil
+}
+
+func (s *Server) publishMonthSchedules(w http.ResponseWriter, r *http.Request) error {
+	month := r.PathValue("month")
+	if _, _, err := monthRange(month); err != nil {
+		return err
+	}
+	var input publishMonthInput
+	if err := decodeJSON(r, &input); err != nil {
+		return err
+	}
+	if input.Message != nil && len([]rune(*input.Message)) > 500 {
+		return badRequest("发布说明不能超过 500 个字符")
+	}
+	claims := requestClaims(r)
+	settings, err := s.loadStorePushSettings(r.Context(), s.db, claims.StoreID)
+	if err != nil {
+		return err
+	}
+	if !settings.SchedulePublishEnabled {
+		writeJSON(w, http.StatusCreated, map[string]any{"ok": true, "month": month, "queued": 0, "message": "排班已发布，门店未开启微信推送"})
+		return nil
+	}
+
+	query := "SELECT sc.`userId`, u.`displayName`, sc.`workDate`, sc.`version`, st.`name`, st.`startTime`, st.`endTime`, st.`isOff` FROM `schedules` sc JOIN `users` u ON u.`id` = sc.`userId` AND u.`isActive` = 1 JOIN `shift_templates` st ON st.`id` = sc.`shiftTemplateId` WHERE sc.`storeId` = ? AND sc.`workDate` BETWEEN ? AND ? ORDER BY sc.`userId`, sc.`workDate`"
+	start, end, _ := monthRange(month)
+	rows, err := s.db.QueryContext(r.Context(), query, claims.StoreID, start, end)
+	if err != nil {
+		return err
+	}
+	type userSchedule struct {
+		name     string
+		items    []publishedScheduleItem
+		versions []string
+	}
+	byUser := make(map[string]*userSchedule)
+	for rows.Next() {
+		var userID, name, workDate, shiftName, startTime, endTime string
+		var version int
+		var isOff bool
+		if err := rows.Scan(&userID, &name, &workDate, &version, &shiftName, &startTime, &endTime, &isOff); err != nil {
+			rows.Close()
+			return err
+		}
+		group := byUser[userID]
+		if group == nil {
+			group = &userSchedule{name: name}
+			byUser[userID] = group
+		}
+		group.versions = append(group.versions, fmt.Sprintf("%s:%d", workDate, version))
+		if len(group.items) < 20 {
+			group.items = append(group.items, publishedScheduleItem{WorkDate: workDate, ShiftName: shiftName, StartTime: startTime, EndTime: endTime, IsOff: isOff})
+		}
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	if len(byUser) == 0 {
+		return badRequest("该月暂无排班可发布")
+	}
+
+	tx, err := s.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	queued := 0
+	for userID, group := range byUser {
+		hash := sha256.Sum256([]byte(fmt.Sprintf("%v", group.versions)))
+		dedupe := "schedule-publish:" + claims.StoreID + ":" + month + ":" + userID + ":" + hex.EncodeToString(hash[:12])
+		title, content := pushPublishedScheduleMessage(group.name, month, group.items)
+		if input.Message != nil && strings.TrimSpace(*input.Message) != "" {
+			content += "\n发布说明：" + strings.TrimSpace(*input.Message)
+		}
+		var bound int
+		if err := tx.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM `push_bindings` WHERE `userId` = ? AND `storeId` = ?", userID, claims.StoreID).Scan(&bound); err != nil {
+			return err
+		}
+		if err := enqueuePushIfBound(r.Context(), tx, claims.StoreID, userID, pushEventSchedulePublish, dedupe, nil, title, content); err != nil {
+			return err
+		}
+		if bound > 0 {
+			queued++
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"ok": true, "month": month, "queued": queued})
 	return nil
 }
 

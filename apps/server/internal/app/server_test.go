@@ -54,6 +54,12 @@ func TestSeedManagerMustChangePassword(t *testing.T) {
 		"username": "qqcxz",
 		"password": "12345",
 	}, http.StatusBadRequest)
+
+	staffResponse := loginTestUserResponse(t, server.URL, "staff1", "123456")
+	if !staffResponse.User.MustChangePassword {
+		t.Fatal("seeded staff should also be required to change the initial password")
+	}
+	assertStatusTest(t, server.URL+"/api/schedules", staffResponse.AccessToken, http.MethodGet, nil, http.StatusForbidden)
 }
 
 func TestSQLiteSeedAndBusinessFlow(t *testing.T) {
@@ -89,7 +95,7 @@ func TestSQLiteSeedAndBusinessFlow(t *testing.T) {
 	}
 
 	managerToken := loginTestUserAfterSeed(t, server.URL, "qqcxz", "123456")
-	staffToken := loginTestUser(t, server.URL, "staff1", "123456")
+	staffToken := loginTestUserAfterSeed(t, server.URL, "staff1", "123456")
 
 	var me User
 	getJSONTest(t, server.URL+"/api/auth/me", managerToken, &me)
@@ -183,7 +189,7 @@ func TestSecurityAndValidationBoundaries(t *testing.T) {
 	defer server.Close()
 
 	managerToken := loginTestUserAfterSeed(t, server.URL, "qqcxz", "123456")
-	staffToken := loginTestUser(t, server.URL, "staff1", "123456")
+	staffToken := loginTestUserAfterSeed(t, server.URL, "staff1", "123456")
 
 	var users []User
 	getJSONTest(t, server.URL+"/api/users", managerToken, &users)

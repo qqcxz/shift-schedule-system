@@ -1,0 +1,75 @@
+<view class="page">
+  <view class="card">
+    <view class="row between section-head">
+      <view>
+        <view class="section-title">我的虾推啥 Token</view>
+        <view class="muted tiny">店长和店员都只绑定自己的 Token</view>
+      </view>
+      <text class="status {{binding.tokenBound ? 'success' : 'info'}}">{{binding.tokenBound ? '已绑定' : '未绑定'}}</text>
+    </view>
+    <view class="notice">关注“虾推啥”公众号，复制公众号发送给你的 Token。系统只会保存加密凭证，不会回显完整 Token。</view>
+    <view wx:if="{{binding.tokenBound}}" class="bound-token">当前 Token：{{binding.maskedToken}}</view>
+    <view class="field">
+      <view class="label">{{binding.tokenBound ? '换绑 Token' : '绑定 Token'}}</view>
+      <input class="input" password value="{{token}}" bindinput="onTokenInput" placeholder="粘贴虾推啥 Token" maxlength="256" />
+    </view>
+    <view class="actions">
+      <button size="mini" class="btn-primary" loading="{{saving}}" bindtap="saveBinding">{{binding.tokenBound ? '换绑' : '绑定'}}</button>
+      <button wx:if="{{binding.tokenBound}}" size="mini" loading="{{testing}}" bindtap="testBinding">发送测试</button>
+      <button wx:if="{{binding.tokenBound}}" size="mini" type="warn" plain loading="{{removing}}" bindtap="removeBinding">解绑</button>
+    </view>
+  </view>
+
+  <view wx:if="{{isManager}}" class="card">
+    <view class="section-title">门店推送事件</view>
+    <view class="muted tiny section-note">只控制是否发送微信通知，不影响排班与换班业务。</view>
+    <view class="setting-row">
+      <view>
+        <view class="label">排班发布通知</view>
+        <view class="muted tiny">向已绑定 Token 的员工推送排班摘要</view>
+      </view>
+      <switch checked="{{settings.schedulePublishEnabled}}" bindchange="onSchedulePublishChange" color="#2563eb" />
+    </view>
+    <view class="setting-row">
+      <view>
+        <view class="label">换班申请通知</view>
+        <view class="muted tiny">员工提交换班后通知店长</view>
+      </view>
+      <switch checked="{{settings.swapRequestEnabled}}" bindchange="onSwapRequestChange" color="#2563eb" />
+    </view>
+    <view class="setting-row">
+      <view>
+        <view class="label">班前提醒</view>
+        <view class="muted tiny">按班次开始时间自动提醒员工</view>
+      </view>
+      <switch checked="{{settings.preShiftReminderEnabled}}" bindchange="onPreShiftChange" color="#2563eb" />
+    </view>
+    <view class="setting-row">
+      <view>
+        <view class="label">提前提醒</view>
+        <view class="muted tiny">门店时区：{{settings.timezone}}</view>
+      </view>
+      <picker mode="selector" range="{{reminderOptions}}" value="{{reminderIndex}}" bindchange="onReminderChange">
+        <view class="picker-value">{{settings.preShiftReminderMinutes}} 分钟 ›</view>
+      </picker>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="row between section-head">
+      <view class="section-title">最近推送记录</view>
+      <text class="link" bindtap="loadAll">刷新</text>
+    </view>
+    <view wx:if="{{!deliveries.length && !loading}}" class="empty muted">暂无推送记录</view>
+    <view wx:for="{{deliveries}}" wx:key="id" class="delivery">
+      <view class="row between">
+        <view class="delivery-title">{{item.title}}</view>
+        <text class="status {{item.stateClass}}">{{item.stateLabel}}</text>
+      </view>
+      <view class="muted tiny">{{item.eventLabel}} · {{item.timeLabel}}</view>
+      <view wx:if="{{item.providerStatus}}" class="muted tiny">服务商：{{item.providerStatus}}</view>
+      <view wx:if="{{item.msgId}}" class="msg-id">{{item.msgId}}</view>
+      <button wx:if="{{item.msgId}}" size="mini" class="status-btn" data-id="{{item.id}}" bindtap="queryStatus">查询投递状态</button>
+    </view>
+  </view>
+</view>

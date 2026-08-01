@@ -49,22 +49,25 @@ DB_PORT=3306
 DB_USER=shift
 DB_PASSWORD=你在宝塔创建的数据库密码
 DB_NAME=shift_schedule
-JWT_SECRET=请改成很长的随机字符串
+DEV_MODE=false
+JWT_SECRET=至少 32 字节的强随机字符串
+PUSH_ENCRYPTION_KEY=独立的至少 32 字节强随机字符串
+PUSH_EGRESS_KEY=生产出口标识
 CORS_ORIGIN=http://你的服务器IP:3000
-SEED_ON_BOOT=true
+SEED_ON_BOOT=false
 WEB_DIST=/app/public
 ```
 
-空库会自动初始化，seed 只在 `users` 表为空时执行一次。店长第一次登录会强制进入改密页面，完成后不需要再把 seed 改回 `false`。如需自定义初始密码，可填写：
+生产默认关闭 seed。首次部署空库如需初始化演示数据，可临时开启 seed 并显式设置两个不同的强初始密码；所有初始账号首次登录都会强制改密：
 
 ```text
 SEED_ON_BOOT=true
 SEED_MANAGER_USERNAME=qqcxz
-SEED_MANAGER_PASSWORD=至少 6 个字符的初始密码
-SEED_STAFF_PASSWORD=至少 6 个字符的初始密码
+SEED_MANAGER_PASSWORD=至少 12 个字符的随机初始密码
+SEED_STAFF_PASSWORD=另一个至少 12 个字符的随机初始密码
 ```
 
-两个 `SEED_*` 变量不是 MySQL 连接密码，未填写时默认使用 `123456`；`SEED_ON_BOOT=false` 仍可用于明确禁用空库 seed。
+两个 `SEED_*` 变量不是 MySQL 连接密码。生产模式不会接受缺失或弱 seed 密码；初始化完成后建议恢复 `SEED_ON_BOOT=false`。
 
 生产环境推荐 MySQL。若 `172.17.0.1` 连不上 MySQL，把 `DB_HOST` 改成 `host.docker.internal`，并用命令行加：
 
@@ -87,9 +90,12 @@ docker run -d \
   -e DB_USER=shift \
   -e DB_PASSWORD=你的密码 \
   -e DB_NAME=shift_schedule \
-  -e JWT_SECRET=请改成随机字符串 \
+  -e DEV_MODE=false \
+  -e JWT_SECRET=至少32字节强随机字符串 \
+  -e PUSH_ENCRYPTION_KEY=独立的至少32字节强随机字符串 \
+  -e PUSH_EGRESS_KEY=生产出口标识 \
   -e CORS_ORIGIN=http://你的服务器IP:3000 \
-  -e SEED_ON_BOOT=true \
+  -e SEED_ON_BOOT=false \
   shift-schedule:latest
 ```
 
@@ -113,12 +119,15 @@ docker run -d \
 PORT=3000
 DB_TYPE=sqlite
 DB_DATABASE=/app/data/shift.sqlite
-JWT_SECRET=随机字符串
+DEV_MODE=false
+JWT_SECRET=至少 32 字节的强随机字符串
+PUSH_ENCRYPTION_KEY=独立的至少 32 字节强随机字符串
+PUSH_EGRESS_KEY=生产出口标识
 CORS_ORIGIN=http://你的服务器IP:3000
-SEED_ON_BOOT=true
+SEED_ON_BOOT=false
 ```
 
-SQLite 为空时保持 `SEED_ON_BOOT=true` 即可初始化；店长首次登录会强制改密。
+SQLite 空库如需 seed，按上文临时开启并设置两个至少 12 位的随机密码；店长和员工首次登录均会强制改密。
 
 挂载（必须）：
 

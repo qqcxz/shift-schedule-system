@@ -29,6 +29,9 @@
   - 店长通过 / 驳回
   - 通过后事务式更新排班
   - 自动通知相关人员
+- **虾推啥微信通知**
+  - 店长与员工各自绑定个人 Token，店长配置排班发布、换班申请和班前提醒开关
+  - Token 加密保存，支持持久化限流、msg_id 留存与投递状态查询
 - **实时同步**
   - WebSocket 推送排班变更、申请创建、审批结果、站内消息
 - **开箱即用**
@@ -135,12 +138,15 @@ cp apps/server/.env.example apps/server/.env
 PORT=3000
 DB_TYPE=sqlite
 DB_DATABASE=./data/shift.sqlite
+DEV_MODE=true
 JWT_SECRET=dev-secret-change-me
+PUSH_ENCRYPTION_KEY=dev-push-encryption-key-change-me
+PUSH_EGRESS_KEY=default-egress
 CORS_ORIGIN=http://localhost:5173
 SEED_ON_BOOT=true
 ```
 
-上述配置仅用于本地演示。生产环境必须显式设置强随机 `JWT_SECRET`；使用 MySQL 时可保持 seed 开启，空库只初始化一次，店长首次登录会强制改密。
+上述配置仅用于本地演示。生产环境必须保持 `DEV_MODE=false`，显式设置强随机 `JWT_SECRET` 和独立的至少 32 字节 `PUSH_ENCRYPTION_KEY`；多实例通过相同 `PUSH_EGRESS_KEY` 共享出口限流。生产默认关闭 seed；如需初始化空库，必须显式提供两个至少 12 位的随机 seed 密码，且所有初始账号首次登录都会强制改密。
 
 ### 4. 启动开发环境
 
@@ -169,9 +175,9 @@ npm run dev:web
 
 ---
 
-## 默认账号
+## 本地开发演示账号
 
-首次启动会自动写入初始数据。登录页不再预填或展示账号信息。
+只有使用示例 `.env`（`DEV_MODE=true` 且 `SEED_ON_BOOT=true`）启动空库时才会写入演示数据。生产镜像默认不会创建这些账号，登录页也不会预填或展示账号信息。
 
 | 角色 | 用户名 | 密码 | 说明 |
 |------|--------|------|------|
@@ -180,7 +186,7 @@ npm run dev:web
 | 店员 | `staff2` | `123456` | 初始店员（可在员工管理中修改/停用） |
 | 店员 | `staff3` | `123456` | 初始店员（可在员工管理中修改/停用） |
 
-店长首次登录会强制设置新密码，密码长度为 6 到 64 位。
+所有演示账号首次登录都会强制设置新密码，密码长度为 6 到 64 位。上述弱密码仅限回环地址上的本机开发，严禁用于公网部署。
 
 初始化内容包括：
 
@@ -270,6 +276,7 @@ npm run start:server # 运行本地 Go 后端
 |------|------|------|
 | GET | `/schedules?month=YYYY-MM` | 查询月排班 |
 | PUT | `/schedules/month` | 店长批量保存月排班 |
+| POST | `/schedules/:month/publish` | 店长发布排班并排队微信通知 |
 
 ### 申请审批
 
@@ -287,6 +294,19 @@ npm run start:server # 运行本地 Go 后端
 | GET | `/notifications` | 消息列表 |
 | POST | `/notifications/:id/read` | 标记单条已读 |
 | POST | `/notifications/read-all` | 全部已读 |
+
+### 虾推啥微信推送
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET / PUT | `/push-settings/me` | 查看或绑定本人 Token（只返回掩码） |
+| DELETE | `/push-settings/me/token` | 解绑本人 Token |
+| POST | `/push-settings/me/test` | 发送测试消息 |
+| GET / PATCH | `/stores/current/push-settings` | 查看或由店长修改门店事件开关 |
+| GET | `/push-deliveries` | 查看有权限的推送记录 |
+| GET | `/push-deliveries/:id/status` | 用已保存的 msg_id 查询投递状态 |
+
+Token 使用 AES-GCM 加密保存。服务持久化执行每 Token 每分钟 10 条、每日 300 条、出口每日 5000 次和状态查询每分钟 5 次限流。发布与业务事件先写入投递队列，由后台 worker 发送，避免第三方网络请求阻塞业务事务。
 
 ### 实时事件（Socket.IO）
 
@@ -327,6 +347,7 @@ docker run -d \
   -p 3000:3000 \
   --add-host=host.docker.internal:host-gateway \
   -e PORT=3000 \
+  -e DEV_MODE=false \
   -e DB_TYPE=mysql \
   -e DB_HOST=172.17.0.1 \
   -e DB_PORT=3306 \
@@ -334,14 +355,14 @@ docker run -d \
   -e DB_PASSWORD=你的密码 \
   -e DB_NAME=shift_schedule \
   -e JWT_SECRET=请换成强随机字符串 \
+  -e PUSH_ENCRYPTION_KEY=请换成独立强随机字符串 \
+  -e PUSH_EGRESS_KEY=生产出口标识 \
   -e CORS_ORIGIN=http://你的服务器IP:3000 \
-  -e SEED_ON_BOOT=true \
+  -e SEED_ON_BOOT=false \
   shift-schedule:latest
 ```
 
-空库首次初始化会自动 seed，`SEED_ON_BOOT` 默认开启且只在 `users` 表为空时创建一次账号。店长第一次登录会被强制带到改密页面，完成后不需要再关闭 seed。
-
-`SEED_MANAGER_PASSWORD` 和 `SEED_STAFF_PASSWORD` 是可选的初始登录密码，不是 MySQL 连接密码；未设置时默认使用 6 位的 `123456`，店长首次登录必须修改。自定义密码至少 6 位。`SEED_ON_BOOT=false` 仍可用于明确禁用空库 seed。
+生产镜像默认 `SEED_ON_BOOT=false`。首次初始化空库如需 seed，请显式设置 `SEED_ON_BOOT=true`、`SEED_MANAGER_PASSWORD` 和 `SEED_STAFF_PASSWORD`；两个初始密码必须分别为至少 12 位的随机值。所有初始账号首次登录都会被强制改密，初始化后建议恢复关闭 seed。
 
 访问：
 
@@ -378,10 +399,12 @@ Compose 不再默认启动未使用的 Redis，也不会内置数据库密码。
 MYSQL_ROOT_PASSWORD=替换为强随机密码
 MYSQL_PASSWORD=替换为强随机密码
 JWT_SECRET=替换为至少 32 字节的强随机字符串
-SEED_ON_BOOT=true
+PUSH_ENCRYPTION_KEY=替换为独立的至少 32 字节强随机字符串
+PUSH_EGRESS_KEY=生产出口标识
+SEED_ON_BOOT=false
 ```
 
-首次使用空 MySQL 数据库时保持 `SEED_ON_BOOT=true` 即可；seed 只在没有用户时执行一次。可选设置两个初始密码，密码至少 6 位。店长首次登录会强制改密，之后不需要修改 seed 开关。
+首次使用空 MySQL 数据库如需初始化演示数据，临时开启 seed，并在未跟踪 `.env` 中设置两个不同的至少 12 位随机初始密码；所有初始账号首次登录都会强制改密。
 
 默认访问：
 
@@ -393,6 +416,7 @@ SEED_ON_BOOT=true
 
 ```env
 PORT=3000
+DEV_MODE=false
 DB_TYPE=mysql
 DB_HOST=172.17.0.1
 DB_PORT=3306
@@ -400,15 +424,17 @@ DB_USER=shift
 DB_PASSWORD=你的密码
 DB_NAME=shift_schedule
 JWT_SECRET=请换成强随机字符串
+PUSH_ENCRYPTION_KEY=请换成独立的至少 32 字节强随机字符串
+PUSH_EGRESS_KEY=生产出口标识
 CORS_ORIGIN=http://你的服务器IP:3000
-SEED_ON_BOOT=true
+SEED_ON_BOOT=false
 ```
 
 建议上线前：
 
-1. 使用至少 32 字节的随机值设置 `JWT_SECRET`，数据库密码不要写入仓库
+1. 使用至少 32 字节的随机值设置 `JWT_SECRET` 和独立的 `PUSH_ENCRYPTION_KEY`，数据库密码与密钥不要写入仓库
 2. 配置 HTTPS（可用宝塔网站反代 / Nginx / Caddy）
-3. 保持 `SEED_ON_BOOT=true` 让空库自动初始化；店长首次登录时强制修改密码
+3. 生产保持 `SEED_ON_BOOT=false`；若需初始化空库，临时开启并显式提供两个至少 12 位的随机初始密码
 4. 定期备份 MySQL
 
 ### 容器更新与数据保留
@@ -420,8 +446,10 @@ docker volume create shift-schedule-data
 docker run -d --name shift-schedule \
   --restart unless-stopped -p 3000:3000 \
   -v shift-schedule-data:/app/data \
-  -e DB_TYPE=sqlite -e DB_DATABASE=/app/data/shift.sqlite \
-  -e JWT_SECRET=请替换为随机长字符串 \
+  -e DEV_MODE=false -e DB_TYPE=sqlite -e DB_DATABASE=/app/data/shift.sqlite \
+  -e JWT_SECRET=请替换为至少32字节随机长字符串 \
+  -e PUSH_ENCRYPTION_KEY=请替换为独立的至少32字节随机字符串 \
+  -e PUSH_EGRESS_KEY=生产出口标识 -e SEED_ON_BOOT=false \
   ghcr.io/qqcxz/shift-schedule-system:latest
 ```
 
@@ -455,7 +483,7 @@ WEB_DIST=apps/web/dist DB_TYPE=sqlite DB_DATABASE=./data/shift.sqlite npm run st
 - 排班保存使用 `version` 做乐观锁，降低并发覆盖风险
 - 同门店数据隔离（按 `storeId`）
 - 排班月份和 seed 示例数据使用服务进程的本地时区；当前没有单独的门店时区配置
-- 本地开发默认自动 seed；生产可按需关闭 `SEED_ON_BOOT`
+- 本地 `DEV_MODE=true` 可自动 seed；生产默认并应保持 `SEED_ON_BOOT=false`
 
 ---
 

@@ -15,3 +15,12 @@ coverage
 .env.*
 !.env.example
 *.local
+apps/miniprogram/project.private.config.json
+*.pid
+*.tmp
+*.bak
+*.backup
+*.zip
+*.tar
+*.tar.gz
+*.7z

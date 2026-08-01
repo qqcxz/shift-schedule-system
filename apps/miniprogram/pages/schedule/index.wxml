@@ -9,16 +9,18 @@
       <view class="row gap">
         <button size="mini" bindtap="loadAll" loading="{{loading}}">刷新</button>
         <button wx:if="{{isManager}}" size="mini" bindtap="openCleanup">清理</button>
-        <button wx:if="{{isManager}}" size="mini" class="btn-primary" bindtap="saveAll" loading="{{saving}}">保存</button>
+        <button wx:if="{{isManager}}" size="mini" bindtap="saveAll" loading="{{saving}}">保存</button>
+        <button wx:if="{{isManager}}" size="mini" class="btn-primary" bindtap="publishMonth" loading="{{publishing}}">发布</button>
       </view>
     </view>
-    <view class="muted tip">{{isManager ? '点击班次可循环切换，改完后点保存' : '可查看全店排班，到“申请”页提交调休/调班'}}</view>
+    <view class="muted tip">{{isManager ? '先保存排班修改，再发布微信通知' : '可查看全店排班，到“申请”页提交调休/调班'}}</view>
     <view class="user-bar row between">
       <view>
         <text class="strong">{{userName}}</text>
         <text class="tag {{isManager ? 'tag-warning' : 'tag-success'}}">{{isManager ? '店长' : '店员'}}</text>
       </view>
       <view class="row gap">
+        <text class="link" bindtap="goPushSettings">微信推送</text>
         <text class="link" bindtap="openPassword">改密</text>
         <text class="link" bindtap="onLogout">退出</text>
       </view>

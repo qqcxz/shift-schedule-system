@@ -15,6 +15,7 @@ import (
 const (
 	defaultManagerUsername = "qqcxz"
 	defaultManagerPassword = "123456"
+	defaultSeedPassword    = "123456"
 	legacyManagerUsername  = "manager"
 )
 
@@ -29,7 +30,7 @@ func seedIfEmpty(ctx context.Context, db *sql.DB, cfg Config) error {
 	}
 	staffPassword := cfg.SeedStaffPassword
 	if staffPassword == "" {
-		staffPassword = "123456"
+		staffPassword = defaultSeedPassword
 	}
 	var count int
 	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM `users`").Scan(&count); err != nil {
@@ -73,7 +74,7 @@ func seedIfEmpty(ctx context.Context, db *sql.DB, cfg Config) error {
 	for _, definition := range staffDefs {
 		id := uuid.NewString()
 		staffIDs = append(staffIDs, id)
-		if _, err := tx.ExecContext(ctx, "INSERT INTO `users` (`id`, `username`, `displayName`, `passwordHash`, `role`, `storeId`, `isActive`, `authVersion`, `mustChangePassword`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?)", id, definition.username, definition.displayName, string(staffHash), RoleStaff, storeID, true, now, now); err != nil {
+		if _, err := tx.ExecContext(ctx, "INSERT INTO `users` (`id`, `username`, `displayName`, `passwordHash`, `role`, `storeId`, `isActive`, `authVersion`, `mustChangePassword`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)", id, definition.username, definition.displayName, string(staffHash), RoleStaff, storeID, true, now, now); err != nil {
 			return err
 		}
 	}
@@ -124,7 +125,7 @@ func seedIfEmpty(ctx context.Context, db *sql.DB, cfg Config) error {
 func migrateLegacyManager(ctx context.Context, db *sql.DB, managerUsername, managerPassword string) error {
 	current, err := findUserByUsername(ctx, db, managerUsername)
 	if err == nil {
-		initialPasswords := []string{defaultManagerPassword, "200395ljf", managerPassword}
+		initialPasswords := []string{defaultManagerPassword, managerPassword}
 		needsPasswordChange := false
 		for _, initialPassword := range initialPasswords {
 			if bcrypt.CompareHashAndPassword([]byte(current.PasswordHash), []byte(initialPassword)) == nil {

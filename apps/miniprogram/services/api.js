@@ -60,12 +60,48 @@ function store() {
   return request({ url: '/stores/current' });
 }
 
+function myPushBinding() {
+  return request({ url: '/push-settings/me' });
+}
+
+function saveMyPushBinding(xiatuiToken) {
+  return request({ url: '/push-settings/me', method: 'PUT', data: { xiatuiToken } });
+}
+
+function deleteMyPushBinding() {
+  return request({ url: '/push-settings/me/token', method: 'DELETE' });
+}
+
+function testMyPushBinding() {
+  return request({ url: '/push-settings/me/test', method: 'POST' });
+}
+
+function storePushSettings() {
+  return request({ url: '/stores/current/push-settings' });
+}
+
+function updateStorePushSettings(payload) {
+  return request({ url: '/stores/current/push-settings', method: 'PATCH', data: payload });
+}
+
+function pushDeliveries() {
+  return request({ url: '/push-deliveries' });
+}
+
+function queryPushDeliveryStatus(id) {
+  return request({ url: `/push-deliveries/${id}/status` });
+}
+
 function schedules(month) {
   return request({ url: '/schedules', params: { month } });
 }
 
 function saveMonthSchedules(payload) {
   return request({ url: '/schedules/month', method: 'PUT', data: payload });
+}
+
+function publishMonthSchedules(month, message) {
+  return request({ url: `/schedules/${month}/publish`, method: 'POST', data: message ? { message } : {} });
 }
 
 function scheduleStorage() {
@@ -125,8 +161,17 @@ module.exports = {
   updateShift,
   deleteShift,
   store,
+  myPushBinding,
+  saveMyPushBinding,
+  deleteMyPushBinding,
+  testMyPushBinding,
+  storePushSettings,
+  updateStorePushSettings,
+  pushDeliveries,
+  queryPushDeliveryStatus,
   schedules,
   saveMonthSchedules,
+  publishMonthSchedules,
   scheduleStorage,
   cleanupSchedules,
   requests,

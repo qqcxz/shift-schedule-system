@@ -4,6 +4,13 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   go:
     runs-on: ubuntu-latest
@@ -52,3 +59,12 @@ jobs:
 
       - name: Build web
         run: npm run build -w @shift/web
+
+      - name: Check mini program sources
+        shell: bash
+        run: |
+          node --check apps/miniprogram/services/api.js
+          node --check apps/miniprogram/pages/settings/index.js
+          node --check apps/miniprogram/pages/schedule/index.js
+          node --check apps/miniprogram/pages/requests/index.js
+          node -e "for (const f of ['apps/miniprogram/app.json','apps/miniprogram/project.config.json','apps/miniprogram/sitemap.json','apps/miniprogram/pages/settings/index.json']) JSON.parse(require('fs').readFileSync(f, 'utf8'))"

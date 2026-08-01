@@ -17,10 +17,12 @@ import (
 type apiHandler func(http.ResponseWriter, *http.Request) error
 
 type Server struct {
-	cfg      Config
-	db       *sql.DB
-	realtime *Realtime
-	handler  http.Handler
+	cfg            Config
+	db             *sql.DB
+	realtime       *Realtime
+	handler        http.Handler
+	pushHTTPClient *http.Client
+	pushWorker     *pushWorker
 }
 
 func New(ctx context.Context, cfg Config) (*Server, error) {
@@ -34,7 +36,8 @@ func New(ctx context.Context, cfg Config) (*Server, error) {
 			return nil, fmt.Errorf("seed database: %w", err)
 		}
 	}
-	server := &Server{cfg: cfg, db: db, realtime: newRealtime(db, cfg)}
+	server := &Server{cfg: cfg, db: db, realtime: newRealtime(db, cfg), pushHTTPClient: newPushHTTPClient(cfg.PushSendTimeout)}
+	server.startPushWorker(ctx)
 	server.handler = server.routes()
 	return server, nil
 }
@@ -42,6 +45,7 @@ func New(ctx context.Context, cfg Config) (*Server, error) {
 func (s *Server) Handler() http.Handler { return s.handler }
 
 func (s *Server) Close() error {
+	s.pushWorker.close()
 	s.realtime.Close()
 	return s.db.Close()
 }
@@ -64,6 +68,15 @@ func (s *Server) routes() http.Handler {
 
 	s.route(mux, "GET /api/stores/current", s.authenticate(s.currentStore))
 
+	s.route(mux, "GET /api/push-settings/me", s.authenticate(s.getPushBinding))
+	s.route(mux, "PUT /api/push-settings/me", s.authenticate(s.putPushBinding))
+	s.route(mux, "DELETE /api/push-settings/me/token", s.authenticate(s.deletePushBinding))
+	s.route(mux, "POST /api/push-settings/me/test", s.authenticate(s.testPushBindingNow))
+	s.route(mux, "GET /api/stores/current/push-settings", s.authenticate(s.getStorePushSettings))
+	s.route(mux, "PATCH /api/stores/current/push-settings", s.authenticate(s.patchStorePushSettings, RoleManager))
+	s.route(mux, "GET /api/push-deliveries", s.authenticate(s.listPushDeliveries))
+	s.route(mux, "GET /api/push-deliveries/{id}/status", s.authenticate(s.queryPushDeliveryStatus))
+
 	s.route(mux, "GET /api/shifts", s.authenticate(s.listShifts))
 	s.route(mux, "POST /api/shifts", s.authenticate(s.createShift, RoleManager))
 	s.route(mux, "PATCH /api/shifts/{id}", s.authenticate(s.updateShift, RoleManager))
@@ -72,6 +85,7 @@ func (s *Server) routes() http.Handler {
 	s.route(mux, "GET /api/schedules", s.authenticate(s.getMonthSchedules))
 	s.route(mux, "GET /api/schedules/storage", s.authenticate(s.scheduleStorage, RoleManager))
 	s.route(mux, "PUT /api/schedules/month", s.authenticate(s.saveMonthSchedules, RoleManager))
+	s.route(mux, "POST /api/schedules/{month}/publish", s.authenticate(s.publishMonthSchedules, RoleManager))
 	s.route(mux, "POST /api/schedules/cleanup", s.authenticate(s.cleanupSchedules, RoleManager))
 
 	s.route(mux, "GET /api/requests", s.authenticate(s.listRequests))
@@ -124,6 +138,7 @@ func (s *Server) apiRoot(w http.ResponseWriter, _ *http.Request) error {
 			"schedules":     "GET /api/schedules?month=YYYY-MM",
 			"requests":      "GET /api/requests",
 			"notifications": "GET /api/notifications",
+			"pushSettings":  "GET /api/push-settings/me",
 		},
 		"clients": map[string]string{
 			"web":         "同端口静态页面（生产）或 http://localhost:5173（开发）",

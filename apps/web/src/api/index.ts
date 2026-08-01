@@ -59,6 +59,37 @@ export type NotificationItem = {
   createdAt: string;
 };
 
+export type PushBinding = {
+  provider: string;
+  tokenBound: boolean;
+  maskedToken?: string;
+};
+
+export type StorePushSettings = {
+  schedulePublishEnabled: boolean;
+  swapRequestEnabled: boolean;
+  preShiftReminderEnabled: boolean;
+  preShiftReminderMinutes: number;
+  timezone: string;
+};
+
+export type PushDelivery = {
+  id: string;
+  userId: string;
+  eventType: 'schedule_publish' | 'swap_request' | 'pre_shift_reminder' | 'test';
+  relatedId?: string;
+  title: string;
+  content: string;
+  msgId?: string;
+  state: 'pending' | 'preparing' | 'sending' | 'sent' | 'failed' | 'rate_limited';
+  providerStatus?: string;
+  providerResponse?: string;
+  attempts: number;
+  attemptedAt?: string;
+  statusCheckedAt?: string;
+  createdAt: string;
+};
+
 export const loginApi = (username: string, password: string) =>
   http.post<{ accessToken: string; user: User }>('/auth/login', { username, password });
 
@@ -114,6 +145,20 @@ export const updateShiftApi = (
 export const deleteShiftApi = (id: string) => http.delete(`/shifts/${id}`);
 
 export const storeApi = () => http.get<{ id: string; name: string; address?: string }>('/stores/current');
+
+export const myPushBindingApi = () => http.get<PushBinding>('/push-settings/me');
+export const saveMyPushBindingApi = (xiatuiToken: string) =>
+  http.put<PushBinding>('/push-settings/me', { xiatuiToken });
+export const deleteMyPushBindingApi = () => http.delete<{ ok: boolean }>('/push-settings/me/token');
+export const testMyPushBindingApi = () => http.post<PushDelivery>('/push-settings/me/test');
+export const storePushSettingsApi = () =>
+  http.get<StorePushSettings>('/stores/current/push-settings');
+export const updateStorePushSettingsApi = (payload: Partial<StorePushSettings>) =>
+  http.patch<StorePushSettings>('/stores/current/push-settings', payload);
+export const pushDeliveriesApi = () => http.get<PushDelivery[]>('/push-deliveries');
+export const queryPushDeliveryStatusApi = (id: string) =>
+  http.get<PushDelivery>(`/push-deliveries/${id}/status`);
+
 export const schedulesApi = (month: string) =>
   http.get<{ month: string; items: ScheduleItem[] }>('/schedules', { params: { month } });
 export const saveMonthSchedulesApi = (payload: {
@@ -127,6 +172,12 @@ export const saveMonthSchedulesApi = (payload: {
     version?: number;
   }>;
 }) => http.put('/schedules/month', payload);
+
+export const publishMonthSchedulesApi = (month: string, message?: string) =>
+  http.post<{ ok: boolean; month: string; queued: number; message?: string }>(
+    `/schedules/${month}/publish`,
+    message ? { message } : {},
+  );
 
 export type ScheduleStorageSummary = {
   total: number;

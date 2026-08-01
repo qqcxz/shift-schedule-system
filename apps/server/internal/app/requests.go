@@ -126,6 +126,24 @@ func (s *Server) createRequest(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	if item.Type == RequestSwap {
+		settings, err := s.loadStorePushSettings(r.Context(), tx, claims.StoreID)
+		if err != nil {
+			return err
+		}
+		if settings.SwapRequestEnabled {
+			content := fmt.Sprintf("%s 提交了换班申请\n日期：%s", item.Requester.DisplayName, item.FromDate)
+			if item.TargetUser != nil {
+				content += "\n换班对象：" + item.TargetUser.DisplayName
+			}
+			if item.Reason != nil && strings.TrimSpace(*item.Reason) != "" {
+				content += "\n原因：" + strings.TrimSpace(*item.Reason)
+			}
+			if err := s.enqueuePushToActiveManagers(r.Context(), tx, claims.StoreID, pushEventSwapRequest, item.ID, "新的换班申请", content); err != nil {
+				return err
+			}
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return err
 	}

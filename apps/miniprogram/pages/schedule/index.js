@@ -8,6 +8,7 @@ Page({
     month: '',
     loading: false,
     saving: false,
+    publishing: false,
     cleaning: false,
     showCleanup: false,
     cleanupModes: ['保留最近 N 个月', '删除指定月份前'],
@@ -82,6 +83,10 @@ Page({
 
   goStaff() {
     wx.navigateTo({ url: '/pages/staff/index' });
+  },
+
+  goPushSettings() {
+    wx.navigateTo({ url: '/pages/settings/index' });
   },
 
   openPassword() {
@@ -341,7 +346,7 @@ Page({
 
     if (!payloadItems.length) {
       wx.showToast({ title: '没有需要保存的修改', icon: 'none' });
-      return;
+      return true;
     }
 
     this.setData({ saving: true });
@@ -354,11 +359,35 @@ Page({
       this.drafts = {};
       this.buildView();
       wx.showToast({ title: '已保存', icon: 'success' });
+      return true;
     } catch (e) {
       // handled
+      return false;
     } finally {
       this.setData({ saving: false });
     }
+  },
+
+  publishMonth() {
+    wx.showModal({
+      title: '发布排班',
+      content: `确认发布 ${this.data.month} 排班并通知已绑定 Token 的员工吗？`,
+      confirmText: '发布',
+      success: async (result) => {
+        if (!result.confirm) return;
+        if (Object.keys(this.drafts).length && !(await this.saveAll())) return;
+        this.setData({ publishing: true });
+        try {
+          const data = await api.publishMonthSchedules(this.data.month);
+          const title = (data && data.message) || (data && data.queued ? `已排队${data.queued}条` : '已发布，无推送接收人');
+          wx.showToast({ title, icon: 'none' });
+        } catch (e) {
+          // handled
+        } finally {
+          this.setData({ publishing: false });
+        }
+      },
+    });
   },
 
   onLogout() {

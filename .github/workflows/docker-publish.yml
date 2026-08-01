@@ -5,16 +5,23 @@ on:
     branches: [main]
     paths:
       - "Dockerfile"
+      - ".dockerignore"
+      - "docker-compose.yml"
       - "package.json"
       - "package-lock.json"
       - "apps/**"
       - "deploy/**"
+      - ".github/workflows/ci.yml"
       - ".github/workflows/docker-publish.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
+
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   IMAGE_NAME: shift-schedule-system

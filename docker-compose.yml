@@ -32,8 +32,11 @@ services:
       DB_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env before starting Compose}
       DB_NAME: ${MYSQL_DATABASE:-shift_schedule}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env before starting Compose}
+      PUSH_ENCRYPTION_KEY: ${PUSH_ENCRYPTION_KEY:?Set PUSH_ENCRYPTION_KEY in .env before starting Compose}
+      PUSH_EGRESS_KEY: ${PUSH_EGRESS_KEY:-default-egress}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-      SEED_ON_BOOT: ${SEED_ON_BOOT:-true}
+      DEV_MODE: "false"
+      SEED_ON_BOOT: ${SEED_ON_BOOT:-false}
       SEED_MANAGER_USERNAME: ${SEED_MANAGER_USERNAME:-qqcxz}
       SEED_MANAGER_PASSWORD: ${SEED_MANAGER_PASSWORD:-}
       SEED_STAFF_PASSWORD: ${SEED_STAFF_PASSWORD:-}

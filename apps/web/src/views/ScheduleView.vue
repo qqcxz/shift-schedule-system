@@ -9,13 +9,14 @@
           format="YYYY年MM月"
           @change="loadAll"
         />
-        <el-tag v-if="auth.isManager" type="info">点击单元格可切换班次，改完后点保存</el-tag>
+        <el-tag v-if="auth.isManager" type="info">先保存修改，再发布排班微信通知</el-tag>
         <el-tag v-else type="success">可查看全店排班，并在“申请审批”中提交调休/调班</el-tag>
       </div>
       <div class="right">
         <el-button @click="loadAll" :loading="loading">刷新</el-button>
         <el-button v-if="auth.isManager" @click="openCleanup">清理历史</el-button>
-        <el-button v-if="auth.isManager" type="primary" :loading="saving" @click="saveAll">保存本月排班</el-button>
+        <el-button v-if="auth.isManager" :loading="saving" @click="saveAll">保存本月排班</el-button>
+        <el-button v-if="auth.isManager" type="primary" :loading="publishing" @click="publishMonth">发布并微信通知</el-button>
       </div>
     </div>
 
@@ -110,6 +111,7 @@ import dayjs from 'dayjs';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   cleanupSchedulesApi,
+  publishMonthSchedulesApi,
   saveMonthSchedulesApi,
   schedulesApi,
   scheduleStorageApi,
@@ -126,6 +128,7 @@ import { onRealtime } from '../realtime';
 const auth = useAuthStore();
 const loading = ref(false);
 const saving = ref(false);
+const publishing = ref(false);
 const cleaning = ref(false);
 const cleanupVisible = ref(false);
 const cleanupMode = ref<'keep' | 'before'>('keep');
@@ -246,7 +249,7 @@ async function loadAll() {
   }
 }
 
-async function saveAll() {
+async function saveAll(): Promise<boolean> {
   const payloadItems = Object.entries(drafts).map(([key, draft]) => {
     const [userId, workDate] = key.split('_');
     return {
@@ -260,7 +263,7 @@ async function saveAll() {
 
   if (!payloadItems.length) {
     ElMessage.info('没有需要保存的修改');
-    return;
+    return true;
   }
 
   saving.value = true;
@@ -273,10 +276,34 @@ async function saveAll() {
     Object.keys(drafts).forEach((key) => delete drafts[key]);
     ElMessage.success('排班已保存，并已实时同步');
     await loadStorage();
+    return true;
+  } catch (error) {
+    ElMessage.error((error as Error).message);
+    return false;
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function publishMonth() {
+  try {
+    await ElMessageBox.confirm(
+      `确认发布 ${monthValue.value} 排班并通知已绑定 Token 的员工吗？`,
+      '发布排班',
+      { confirmButtonText: '发布并通知', cancelButtonText: '取消' },
+    );
+  } catch {
+    return;
+  }
+  if (Object.keys(drafts).length && !(await saveAll())) return;
+  publishing.value = true;
+  try {
+    const { data } = await publishMonthSchedulesApi(monthValue.value);
+    ElMessage.success(data.message || (data.queued ? `排班已发布，已排队 ${data.queued} 条微信通知` : '排班已发布，暂无已绑定 Token 的接收人'));
   } catch (error) {
     ElMessage.error((error as Error).message);
   } finally {
-    saving.value = false;
+    publishing.value = false;
   }
 }
 

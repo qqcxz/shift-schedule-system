@@ -25,8 +25,13 @@ type Config struct {
 	SeedManagerUsername string
 	SeedManagerPassword string
 	SeedStaffPassword   string
+	DevMode             bool
 	ScheduleKeepMonths  int
 	WebDist             string
+	PushEncryptionKey   string
+	PushEgressKey       string
+	PushSendTimeout     time.Duration
+	PushWorkerInterval  time.Duration
 }
 
 func LoadConfig() (Config, error) {
@@ -61,20 +66,52 @@ func LoadConfig() (Config, error) {
 	default:
 		return Config{}, fmt.Errorf("unsupported DB_TYPE %q (use sqljs, sqlite, or mysql)", dbType)
 	}
-	seedOnBoot, err := envBool("SEED_ON_BOOT", true)
+	devMode, err := envBool("DEV_MODE", false)
 	if err != nil {
 		return Config{}, err
 	}
+	seedDefault := devMode
+	seedOnBoot, err := envBool("SEED_ON_BOOT", seedDefault)
+	if err != nil {
+		return Config{}, err
+	}
+	pushSendTimeoutSeconds, err := envInt("PUSH_SEND_TIMEOUT_SECONDS", 10)
+	if err != nil {
+		return Config{}, err
+	}
+	pushWorkerIntervalSeconds, err := envInt("PUSH_WORKER_INTERVAL_SECONDS", 30)
+	if err != nil {
+		return Config{}, err
+	}
+	if pushSendTimeoutSeconds < 1 || pushSendTimeoutSeconds > 60 {
+		return Config{}, fmt.Errorf("PUSH_SEND_TIMEOUT_SECONDS must be between 1 and 60")
+	}
+	if pushWorkerIntervalSeconds < 5 || pushWorkerIntervalSeconds > 300 {
+		return Config{}, fmt.Errorf("PUSH_WORKER_INTERVAL_SECONDS must be between 5 and 300")
+	}
 
 	jwtSecret, jwtSecretProvided := configuredSecret("JWT_SECRET", "dev-secret-change-me")
-	if dbType == "mysql" && (!jwtSecretProvided || len([]byte(jwtSecret)) < 32) {
-		return Config{}, fmt.Errorf("JWT_SECRET must be explicitly set to at least 32 bytes when DB_TYPE=mysql")
+	if (!devMode && (!jwtSecretProvided || len([]byte(jwtSecret)) < 32)) || (dbType == "mysql" && (!jwtSecretProvided || len([]byte(jwtSecret)) < 32)) {
+		return Config{}, fmt.Errorf("JWT_SECRET must be explicitly set to at least 32 bytes outside DEV_MODE")
+	}
+	pushEncryptionKey, pushEncryptionKeyProvided := configuredSecret("PUSH_ENCRYPTION_KEY", "")
+	if pushEncryptionKey == "" {
+		if !devMode {
+			return Config{}, fmt.Errorf("PUSH_ENCRYPTION_KEY must be explicitly set outside DEV_MODE")
+		}
+		pushEncryptionKey = jwtSecret
+	}
+	if (!devMode && (!pushEncryptionKeyProvided || len([]byte(pushEncryptionKey)) < 32)) || (dbType == "mysql" && (!pushEncryptionKeyProvided || len([]byte(pushEncryptionKey)) < 32)) {
+		return Config{}, fmt.Errorf("PUSH_ENCRYPTION_KEY must be explicitly set to at least 32 bytes outside DEV_MODE")
 	}
 	seedManagerUsername := env("SEED_MANAGER_USERNAME", defaultManagerUsername)
-	seedManagerPassword, _ := configuredSecret("SEED_MANAGER_PASSWORD", defaultManagerPassword)
-	seedStaffPassword, _ := configuredSecret("SEED_STAFF_PASSWORD", "123456")
+	seedManagerPassword, seedManagerPasswordProvided := configuredSecret("SEED_MANAGER_PASSWORD", defaultManagerPassword)
+	seedStaffPassword, seedStaffPasswordProvided := configuredSecret("SEED_STAFF_PASSWORD", defaultSeedPassword)
 	if seedOnBoot && (len([]rune(seedManagerPassword)) < 6 || len([]rune(seedStaffPassword)) < 6) {
 		return Config{}, fmt.Errorf("SEED_MANAGER_PASSWORD and SEED_STAFF_PASSWORD must be at least 6 characters when seeding")
+	}
+	if seedOnBoot && !devMode && (!seedManagerPasswordProvided || !seedStaffPasswordProvided || len([]rune(seedManagerPassword)) < 12 || len([]rune(seedStaffPassword)) < 12) {
+		return Config{}, fmt.Errorf("outside DEV_MODE, seeding requires explicit SEED_MANAGER_PASSWORD and SEED_STAFF_PASSWORD of at least 12 characters")
 	}
 
 	return Config{
@@ -92,8 +129,13 @@ func LoadConfig() (Config, error) {
 		SeedManagerUsername: seedManagerUsername,
 		SeedManagerPassword: seedManagerPassword,
 		SeedStaffPassword:   seedStaffPassword,
+		DevMode:             devMode,
 		ScheduleKeepMonths:  keepMonths,
 		WebDist:             resolveWebDist(os.Getenv("WEB_DIST")),
+		PushEncryptionKey:   pushEncryptionKey,
+		PushEgressKey:       env("PUSH_EGRESS_KEY", "default-egress"),
+		PushSendTimeout:     time.Duration(pushSendTimeoutSeconds) * time.Second,
+		PushWorkerInterval:  time.Duration(pushWorkerIntervalSeconds) * time.Second,
 	}, nil
 }
 

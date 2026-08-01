@@ -8,6 +8,7 @@ import NotificationsView from '../views/NotificationsView.vue';
 import ShiftsView from '../views/ShiftsView.vue';
 import StaffView from '../views/StaffView.vue';
 import ChangePasswordView from '../views/ChangePasswordView.vue';
+import PushSettingsView from '../views/PushSettingsView.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -31,6 +32,7 @@ const router = createRouter({
         { path: 'schedule', name: 'schedule', component: ScheduleView },
         { path: 'requests', name: 'requests', component: RequestsView },
         { path: 'notifications', name: 'notifications', component: NotificationsView },
+        { path: 'settings', name: 'settings', component: PushSettingsView },
         {
           path: 'shifts',
           name: 'shifts',
