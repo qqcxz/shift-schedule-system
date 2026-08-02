@@ -55,15 +55,15 @@
             <el-switch v-model="storeSettings.schedulePublishEnabled" @change="saveStoreSettings" />
           </div>
         </el-form-item>
-        <el-form-item label="换班申请通知">
+        <el-form-item label="排班申请通知">
           <div class="switch-row">
-            <span class="muted">员工提交换班申请后，通知已绑定 Token 的店长。</span>
+            <span class="muted">员工提交调休、调班或改班申请后，通知已绑定 Token 的店长。</span>
             <el-switch v-model="storeSettings.swapRequestEnabled" @change="saveStoreSettings" />
           </div>
         </el-form-item>
         <el-form-item label="班前提醒">
           <div class="switch-row">
-            <span class="muted">每天在设定时间，向当天尚未开始班次的员工发送提醒。</span>
+            <span class="muted">每天在设定时间提醒下一班；当天没有待开始班次时，自动提醒次日班次。</span>
             <el-switch v-model="storeSettings.preShiftReminderEnabled" @change="saveStoreSettings" />
           </div>
         </el-form-item>

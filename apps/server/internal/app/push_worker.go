@@ -14,6 +14,8 @@ import (
 
 const pushDeliveryLease = 2 * time.Minute
 
+const preShiftReminderGrace = 2 * time.Minute
+
 type pushWorker struct {
 	server *Server
 	cancel context.CancelFunc
@@ -267,18 +269,26 @@ func (s *Server) enqueueDuePreShiftReminders(ctx context.Context, now time.Time)
 			continue
 		}
 		localNow := now.In(location)
-		if localNow.Format("15:04") != item.remindTime {
+		reminderAt, err := time.ParseInLocation("15:04", item.remindTime, location)
+		if err != nil {
+			log.Printf("skip pre-shift reminder for store %s: invalid reminder time %q", item.storeID, item.remindTime)
 			continue
 		}
-		date := localNow.Format("2006-01-02")
-		query := "SELECT sc.`id`, sc.`userId`, sc.`version`, u.`displayName`, st.`name`, st.`startTime`, st.`endTime` FROM `schedules` sc JOIN `users` u ON u.`id` = sc.`userId` AND u.`isActive` = 1 JOIN `shift_templates` st ON st.`id` = sc.`shiftTemplateId` AND st.`isOff` = 0 WHERE sc.`storeId` = ? AND sc.`workDate` = ? AND st.`startTime` > ?"
-		upcoming, err := s.db.QueryContext(ctx, query, item.storeID, date, item.remindTime)
+		reminderAt = time.Date(localNow.Year(), localNow.Month(), localNow.Day(), reminderAt.Hour(), reminderAt.Minute(), 0, 0, location)
+		if localNow.Before(reminderAt) || localNow.Sub(reminderAt) > preShiftReminderGrace {
+			continue
+		}
+		today := localNow.Format("2006-01-02")
+		tomorrow := localNow.AddDate(0, 0, 1).Format("2006-01-02")
+		query := "SELECT sc.`id`, sc.`userId`, sc.`workDate`, sc.`version`, u.`displayName`, st.`name`, st.`startTime`, st.`endTime` FROM `schedules` sc JOIN `users` u ON u.`id` = sc.`userId` AND u.`isActive` = 1 JOIN `shift_templates` st ON st.`id` = sc.`shiftTemplateId` AND st.`isOff` = 0 WHERE sc.`storeId` = ? AND sc.`workDate` IN (?, ?) ORDER BY sc.`userId`, sc.`workDate`, st.`startTime`"
+		upcoming, err := s.db.QueryContext(ctx, query, item.storeID, today, tomorrow)
 		if err != nil {
 			return err
 		}
 		type reminder struct {
 			scheduleID  string
 			userID      string
+			workDate    string
 			version     int
 			displayName string
 			shiftName   string
@@ -286,12 +296,22 @@ func (s *Server) enqueueDuePreShiftReminders(ctx context.Context, now time.Time)
 			endTime     string
 		}
 		reminders := make([]reminder, 0)
+		seenUsers := make(map[string]struct{})
 		for upcoming.Next() {
 			var reminder reminder
-			if err := upcoming.Scan(&reminder.scheduleID, &reminder.userID, &reminder.version, &reminder.displayName, &reminder.shiftName, &reminder.startTime, &reminder.endTime); err != nil {
+			var workDate DBDate
+			if err := upcoming.Scan(&reminder.scheduleID, &reminder.userID, &workDate, &reminder.version, &reminder.displayName, &reminder.shiftName, &reminder.startTime, &reminder.endTime); err != nil {
 				upcoming.Close()
 				return err
 			}
+			reminder.workDate = string(workDate)
+			if reminder.workDate == today && reminder.startTime < item.remindTime {
+				continue
+			}
+			if _, exists := seenUsers[reminder.userID]; exists {
+				continue
+			}
+			seenUsers[reminder.userID] = struct{}{}
 			reminders = append(reminders, reminder)
 		}
 		if err := upcoming.Err(); err != nil {
@@ -305,7 +325,11 @@ func (s *Server) enqueueDuePreShiftReminders(ctx context.Context, now time.Time)
 			related := reminder.scheduleID
 			dedupe := fmt.Sprintf("pre-shift:%s:%d:%s", reminder.scheduleID, reminder.version, item.remindTime)
 			title := fmt.Sprintf("%s 班前提醒", reminder.shiftName)
-			content := fmt.Sprintf("%s，您今天 %s 上班。\n日期：%s\n班次：%s（%s-%s）", reminder.displayName, reminder.startTime, date, reminder.shiftName, reminder.startTime, reminder.endTime)
+			dayLabel := "今天"
+			if reminder.workDate == tomorrow {
+				dayLabel = "明天"
+			}
+			content := fmt.Sprintf("%s，您%s %s 上班。\n日期：%s\n班次：%s（%s-%s）", reminder.displayName, dayLabel, reminder.startTime, reminder.workDate, reminder.shiftName, reminder.startTime, reminder.endTime)
 			if err := enqueuePushIfBound(ctx, s.db, item.storeID, reminder.userID, pushEventPreShift, dedupe, &related, title, content); err != nil {
 				return err
 			}

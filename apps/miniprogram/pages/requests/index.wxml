@@ -69,8 +69,8 @@
 
       <view class="field" wx:if="{{form.type === 'swap'}}">
         <view class="label">调班对象</view>
-        <picker mode="selector" range="{{staffNames}}" value="{{targetIndex}}" bindchange="onTargetChange">
-          <view class="picker">{{staffNames[targetIndex] || '请选择同事'}}</view>
+        <picker mode="selector" range="{{targetNames}}" value="{{targetIndex}}" bindchange="onTargetChange">
+          <view class="picker">{{targetNames[targetIndex] || '请选择调班对象'}}</view>
         </picker>
       </view>
 

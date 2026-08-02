@@ -32,15 +32,15 @@
     </view>
     <view class="setting-row">
       <view>
-        <view class="label">换班申请通知</view>
-        <view class="muted tiny">员工提交换班后通知店长</view>
+        <view class="label">排班申请通知</view>
+        <view class="muted tiny">员工提交调休、调班或改班后通知店长</view>
       </view>
       <switch checked="{{settings.swapRequestEnabled}}" bindchange="onSwapRequestChange" color="#2563eb" />
     </view>
     <view class="setting-row">
       <view>
         <view class="label">班前提醒</view>
-        <view class="muted tiny">每天在设定时间提醒当天有班次的员工</view>
+        <view class="muted tiny">每天提醒下一班；当天没有待开始班次时提醒次日班次</view>
       </view>
       <switch checked="{{settings.preShiftReminderEnabled}}" bindchange="onPreShiftChange" color="#2563eb" />
     </view>

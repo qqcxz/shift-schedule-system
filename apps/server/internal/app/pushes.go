@@ -25,6 +25,7 @@ import (
 
 const (
 	pushEventSchedulePublish = "schedule_publish"
+	pushEventScheduleRequest = "schedule_request"
 	pushEventSwapRequest     = "swap_request"
 	pushEventPreShift        = "pre_shift_reminder"
 	pushEventTest            = "test"

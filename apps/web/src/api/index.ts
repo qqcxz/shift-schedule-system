@@ -76,7 +76,7 @@ export type StorePushSettings = {
 export type PushDelivery = {
   id: string;
   userId: string;
-  eventType: 'schedule_publish' | 'swap_request' | 'pre_shift_reminder' | 'test';
+  eventType: 'schedule_publish' | 'schedule_request' | 'swap_request' | 'pre_shift_reminder' | 'test';
   relatedId?: string;
   title: string;
   content: string;

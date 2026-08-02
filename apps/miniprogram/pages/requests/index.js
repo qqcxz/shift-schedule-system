@@ -24,8 +24,8 @@ Page({
       toShiftId: '',
       reason: '',
     },
-    staffList: [],
-    staffNames: [],
+    swapTargets: [],
+    targetNames: [],
     targetIndex: 0,
     shifts: [],
     shiftNames: [],
@@ -75,10 +75,10 @@ Page({
     try {
       const user = getUser();
       const [users, shifts] = await Promise.all([api.users(), api.shifts()]);
-      const staffList = (users || []).filter((u) => u.role === 'staff' && u.id !== (user && user.id));
+      const swapTargets = (users || []).filter((u) => u.isActive && u.id !== (user && user.id));
       this.setData({
-        staffList,
-        staffNames: staffList.map((u) => u.displayName),
+        swapTargets,
+        targetNames: swapTargets.map((u) => `${u.displayName}（${u.role === 'manager' ? '店长' : '店员'}）`),
         shifts: shifts || [],
         shiftNames: (shifts || []).map((s) => s.name),
         targetIndex: 0,
@@ -146,7 +146,7 @@ Page({
 
   onTargetChange(e) {
     const index = Number(e.detail.value || 0);
-    const target = this.data.staffList[index];
+    const target = this.data.swapTargets[index];
     this.setData({
       targetIndex: index,
       'form.targetUserId': target ? target.id : '',
@@ -167,7 +167,7 @@ Page({
   },
 
   async onCreate() {
-    const { form, staffList, shifts, targetIndex, shiftIndex, submitting } = this.data;
+    const { form, swapTargets, shifts, targetIndex, shiftIndex, submitting } = this.data;
     if (submitting) return;
     if (!form.fromDate) {
       wx.showToast({ title: '请选择日期', icon: 'none' });
@@ -181,7 +181,7 @@ Page({
     };
 
     if (form.type === 'swap') {
-      const target = staffList[targetIndex];
+      const target = swapTargets[targetIndex];
       if (!target) {
         wx.showToast({ title: '请选择调班对象', icon: 'none' });
         return;

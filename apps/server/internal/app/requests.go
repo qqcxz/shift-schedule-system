@@ -46,7 +46,7 @@ func validateCreateRequest(input createRequestInput) error {
 		}
 	}
 	if input.Type == RequestSwap && (input.TargetUserID == nil || strings.TrimSpace(*input.TargetUserID) == "") {
-		return badRequest("调班申请必须指定目标店员")
+		return badRequest("调班申请必须指定目标员工")
 	}
 	if input.Type == RequestChange && (input.ToShiftID == nil || strings.TrimSpace(*input.ToShiftID) == "") {
 		return badRequest("改班申请必须指定目标班次")
@@ -82,7 +82,7 @@ func (s *Server) createRequest(w http.ResponseWriter, r *http.Request) error {
 		target, err := findUserInStore(r.Context(), s.db, claims.StoreID, targetID)
 		if err != nil {
 			if isNotFoundError(err) {
-				return badRequest("目标店员不存在")
+				return badRequest("目标员工不存在")
 			}
 			return err
 		}
@@ -90,7 +90,7 @@ func (s *Server) createRequest(w http.ResponseWriter, r *http.Request) error {
 			return badRequest("调班目标不能是自己")
 		}
 		if !target.IsActive {
-			return badRequest("目标店员已停用")
+			return badRequest("目标员工已停用")
 		}
 		input.TargetUserID = &targetID
 	}
@@ -126,22 +126,27 @@ func (s *Server) createRequest(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	if item.Type == RequestSwap {
-		settings, err := s.loadStorePushSettings(r.Context(), tx, claims.StoreID)
-		if err != nil {
-			return err
+	settings, err := s.loadStorePushSettings(r.Context(), tx, claims.StoreID)
+	if err != nil {
+		return err
+	}
+	if settings.SwapRequestEnabled {
+		content := fmt.Sprintf("%s 提交了%s申请\n日期：%s", item.Requester.DisplayName, requestTypeLabel(item.Type), item.FromDate)
+		if item.TargetUser != nil {
+			content += "\n调班对象：" + item.TargetUser.DisplayName
 		}
-		if settings.SwapRequestEnabled {
-			content := fmt.Sprintf("%s 提交了换班申请\n日期：%s", item.Requester.DisplayName, item.FromDate)
-			if item.TargetUser != nil {
-				content += "\n换班对象：" + item.TargetUser.DisplayName
-			}
-			if item.Reason != nil && strings.TrimSpace(*item.Reason) != "" {
-				content += "\n原因：" + strings.TrimSpace(*item.Reason)
-			}
-			if err := s.enqueuePushToActiveManagers(r.Context(), tx, claims.StoreID, pushEventSwapRequest, item.ID, "新的换班申请", content); err != nil {
+		if item.ToShiftID != nil {
+			targetShift, err := findShift(r.Context(), tx, claims.StoreID, strings.TrimSpace(*item.ToShiftID))
+			if err != nil {
 				return err
 			}
+			content += "\n目标班次：" + targetShift.Name
+		}
+		if item.Reason != nil && strings.TrimSpace(*item.Reason) != "" {
+			content += "\n原因：" + strings.TrimSpace(*item.Reason)
+		}
+		if err := s.enqueuePushToActiveManagers(r.Context(), tx, claims.StoreID, pushEventScheduleRequest, item.ID, "新的排班申请", content); err != nil {
+			return err
 		}
 	}
 	if err := tx.Commit(); err != nil {
@@ -323,17 +328,17 @@ func (s *Server) reviewRequest(w http.ResponseWriter, r *http.Request, approve b
 			}
 		case RequestSwap:
 			if item.TargetUserID == nil {
-				return badRequest("调班申请缺少目标店员")
+				return badRequest("调班申请缺少目标员工")
 			}
 			target, err := findUserInStore(r.Context(), tx, claims.StoreID, *item.TargetUserID)
 			if err != nil {
 				if isNotFoundError(err) {
-					return badRequest("目标店员不存在")
+					return badRequest("目标员工不存在")
 				}
 				return err
 			}
 			if !target.IsActive {
-				return badRequest("目标店员已停用")
+				return badRequest("目标员工已停用")
 			}
 			if err := applySwap(r.Context(), tx, claims.StoreID, item.RequesterID, *item.TargetUserID, item.FromDate, claims.Subject); err != nil {
 				return err

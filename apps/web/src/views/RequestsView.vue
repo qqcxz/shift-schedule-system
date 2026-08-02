@@ -117,11 +117,11 @@
           <el-date-picker v-model="form.fromDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
         </el-form-item>
         <el-form-item v-if="form.type === 'swap'" label="调班对象">
-          <el-select v-model="form.targetUserId" placeholder="选择同事" style="width: 100%">
+          <el-select v-model="form.targetUserId" placeholder="选择调班对象" style="width: 100%">
             <el-option
-              v-for="user in otherStaff"
+              v-for="user in swapTargets"
               :key="user.id"
-              :label="user.displayName"
+              :label="`${user.displayName}（${user.role === 'manager' ? '店长' : '店员'}）`"
               :value="user.id"
             />
           </el-select>
@@ -187,8 +187,8 @@ const form = reactive({
   reason: '',
 });
 
-const otherStaff = computed(() =>
-  users.value.filter((item) => item.role === 'staff' && item.id !== auth.user?.id),
+const swapTargets = computed(() =>
+  users.value.filter((item) => item.isActive && item.id !== auth.user?.id),
 );
 
 function typeLabel(type: string) {

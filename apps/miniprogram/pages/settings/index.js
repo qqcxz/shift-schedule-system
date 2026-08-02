@@ -3,6 +3,7 @@ const { getToken, getUser, isManager } = require('../../utils/auth');
 
 const EVENT_LABELS = {
   schedule_publish: '排班发布',
+  schedule_request: '排班申请',
   swap_request: '换班申请',
   pre_shift_reminder: '班前提醒',
   test: '测试消息',
