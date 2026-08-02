@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func TestPushBindingAndStoreSettingsAPI(t *testing.T) {
@@ -39,16 +42,81 @@ func TestPushBindingAndStoreSettingsAPI(t *testing.T) {
 		"schedulePublishEnabled":  true,
 		"swapRequestEnabled":      true,
 		"preShiftReminderEnabled": true,
-		"preShiftReminderMinutes": 45,
+		"preShiftReminderTime":    "08:30",
 		"timezone":                "Asia/Shanghai",
 	}, http.StatusOK, &settings)
-	if !settings.SchedulePublishEnabled || !settings.SwapRequestEnabled || settings.PreShiftReminderMinutes != 45 {
+	if !settings.SchedulePublishEnabled || !settings.SwapRequestEnabled || settings.PreShiftReminderTime != "08:30" {
 		t.Fatalf("unexpected store push settings: %+v", settings)
 	}
+	assertStatusTest(t, server.URL+"/api/stores/current/push-settings", managerToken, http.MethodPatch, map[string]any{"preShiftReminderTime": "25:99"}, http.StatusBadRequest)
 	assertStatusTest(t, server.URL+"/api/push-settings/me/token", staffToken, http.MethodDelete, nil, http.StatusOK)
 	getJSONTest(t, server.URL+"/api/push-settings/me", staffToken, &binding)
 	if binding.TokenBound {
 		t.Fatal("binding should be removed")
+	}
+}
+
+func TestPreShiftReminderUsesConfiguredTimeAndDeduplicates(t *testing.T) {
+	service, server, managerToken, staffToken := newPushTestServer(t)
+	defer service.Close()
+	defer server.Close()
+	service.pushWorker.close()
+	service.pushWorker = nil
+
+	var staff User
+	getJSONTest(t, server.URL+"/api/auth/me", staffToken, &staff)
+	var binding pushBindingView
+	putJSONTest(t, server.URL+"/api/push-settings/me", staffToken, map[string]string{"xiatuiToken": "fixed_time_token_123456"}, &binding, http.StatusOK)
+	assertStatusTest(t, server.URL+"/api/stores/current/push-settings", managerToken, http.MethodPatch, map[string]any{
+		"preShiftReminderEnabled": true,
+		"preShiftReminderTime":    "08:00",
+		"timezone":                "Asia/Shanghai",
+	}, http.StatusOK)
+
+	location, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		t.Fatal(err)
+	}
+	reminderAt := time.Date(2099, 8, 2, 8, 0, 30, 0, location)
+	createdAt := nowDB()
+	shiftID := uuid.NewString()
+	scheduleID := uuid.NewString()
+	if _, err := service.db.Exec("INSERT INTO `shift_templates` (`id`, `storeId`, `name`, `code`, `startTime`, `endTime`, `color`, `sortOrder`, `isOff`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", shiftID, staff.StoreID, "固定时间测试班次", "FIXED_"+shiftID, "09:00", "17:00", "#409EFF", 99, false, createdAt, createdAt); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.db.Exec("INSERT INTO `schedules` (`id`, `storeId`, `userId`, `workDate`, `shiftTemplateId`, `status`, `version`, `createdById`, `updatedById`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", scheduleID, staff.StoreID, staff.ID, reminderAt.Format("2006-01-02"), shiftID, "normal", 1, staff.ID, staff.ID, createdAt, createdAt); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := service.enqueueDuePreShiftReminders(context.Background(), reminderAt.Add(-time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	var count int
+	if err := service.db.QueryRow("SELECT COUNT(*) FROM `push_deliveries` WHERE `eventType` = ? AND `relatedId` = ?", pushEventPreShift, scheduleID).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("reminder was sent before configured time: %d", count)
+	}
+
+	if err := service.enqueueDuePreShiftReminders(context.Background(), reminderAt); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.enqueueDuePreShiftReminders(context.Background(), reminderAt.Add(30*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.db.QueryRow("SELECT COUNT(*) FROM `push_deliveries` WHERE `eventType` = ? AND `relatedId` = ?", pushEventPreShift, scheduleID).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("expected one fixed-time reminder, got %d", count)
+	}
+	var content string
+	if err := service.db.QueryRow("SELECT `content` FROM `push_deliveries` WHERE `eventType` = ? AND `relatedId` = ?", pushEventPreShift, scheduleID).Scan(&content); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(content, "今天 09:00 上班") {
+		t.Fatalf("unexpected reminder content: %q", content)
 	}
 }
 

@@ -57,7 +57,13 @@ func (w *pushWorker) run(ctx context.Context) {
 	if interval <= 0 {
 		interval = 30 * time.Second
 	}
-	w.tick(ctx)
+	reminderDone := make(chan struct{})
+	go func() {
+		defer close(reminderDone)
+		w.runPreShiftReminderLoop(ctx)
+	}()
+	defer func() { <-reminderDone }()
+	w.processPendingPushesTick(ctx)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
@@ -65,17 +71,34 @@ func (w *pushWorker) run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			w.tick(ctx)
+			w.processPendingPushesTick(ctx)
 		}
 	}
 }
 
-func (w *pushWorker) tick(ctx context.Context) {
-	if err := w.server.enqueueDuePreShiftReminders(ctx, time.Now()); err != nil && !errors.Is(err, context.Canceled) {
-		log.Printf("enqueue pre-shift reminders: %v", err)
-	}
+func (w *pushWorker) processPendingPushesTick(ctx context.Context) {
 	if err := w.server.processPendingPushes(ctx, 20); err != nil && !errors.Is(err, context.Canceled) {
 		log.Printf("process push deliveries: %v", err)
+	}
+}
+
+func (w *pushWorker) runPreShiftReminderLoop(ctx context.Context) {
+	w.enqueuePreShiftReminders(ctx)
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			w.enqueuePreShiftReminders(ctx)
+		}
+	}
+}
+
+func (w *pushWorker) enqueuePreShiftReminders(ctx context.Context) {
+	if err := w.server.enqueueDuePreShiftReminders(ctx, time.Now()); err != nil && !errors.Is(err, context.Canceled) {
+		log.Printf("enqueue pre-shift reminders: %v", err)
 	}
 }
 
@@ -212,23 +235,27 @@ func isRecordedPushFailure(err error) bool {
 }
 
 func (s *Server) enqueueDuePreShiftReminders(ctx context.Context, now time.Time) error {
-	rows, err := s.db.QueryContext(ctx, "SELECT `storeId`, `preShiftReminderMinutes`, `timezone` FROM `store_push_settings` WHERE `preShiftReminderEnabled` = 1")
+	rows, err := s.db.QueryContext(ctx, "SELECT `storeId`, `preShiftReminderTime`, `timezone` FROM `store_push_settings` WHERE `preShiftReminderEnabled` = 1")
 	if err != nil {
 		return err
 	}
 	type setting struct {
-		storeID  string
-		minutes  int
-		timezone string
+		storeID    string
+		remindTime string
+		timezone   string
 	}
 	settings := make([]setting, 0)
 	for rows.Next() {
 		var item setting
-		if err := rows.Scan(&item.storeID, &item.minutes, &item.timezone); err != nil {
+		if err := rows.Scan(&item.storeID, &item.remindTime, &item.timezone); err != nil {
 			rows.Close()
 			return err
 		}
 		settings = append(settings, item)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
 	}
 	if err := rows.Close(); err != nil {
 		return err
@@ -239,11 +266,13 @@ func (s *Server) enqueueDuePreShiftReminders(ctx context.Context, now time.Time)
 			log.Printf("skip pre-shift reminder for store %s: invalid timezone %q", item.storeID, item.timezone)
 			continue
 		}
-		target := now.In(location).Add(time.Duration(item.minutes) * time.Minute)
-		date := target.Format("2006-01-02")
-		clock := target.Format("15:04")
-		query := "SELECT sc.`id`, sc.`userId`, sc.`version`, u.`displayName`, st.`name`, st.`startTime`, st.`endTime` FROM `schedules` sc JOIN `users` u ON u.`id` = sc.`userId` AND u.`isActive` = 1 JOIN `shift_templates` st ON st.`id` = sc.`shiftTemplateId` AND st.`isOff` = 0 WHERE sc.`storeId` = ? AND sc.`workDate` = ? AND st.`startTime` = ?"
-		upcoming, err := s.db.QueryContext(ctx, query, item.storeID, date, clock)
+		localNow := now.In(location)
+		if localNow.Format("15:04") != item.remindTime {
+			continue
+		}
+		date := localNow.Format("2006-01-02")
+		query := "SELECT sc.`id`, sc.`userId`, sc.`version`, u.`displayName`, st.`name`, st.`startTime`, st.`endTime` FROM `schedules` sc JOIN `users` u ON u.`id` = sc.`userId` AND u.`isActive` = 1 JOIN `shift_templates` st ON st.`id` = sc.`shiftTemplateId` AND st.`isOff` = 0 WHERE sc.`storeId` = ? AND sc.`workDate` = ? AND st.`startTime` > ?"
+		upcoming, err := s.db.QueryContext(ctx, query, item.storeID, date, item.remindTime)
 		if err != nil {
 			return err
 		}
@@ -265,14 +294,18 @@ func (s *Server) enqueueDuePreShiftReminders(ctx context.Context, now time.Time)
 			}
 			reminders = append(reminders, reminder)
 		}
+		if err := upcoming.Err(); err != nil {
+			upcoming.Close()
+			return err
+		}
 		if err := upcoming.Close(); err != nil {
 			return err
 		}
 		for _, reminder := range reminders {
 			related := reminder.scheduleID
-			dedupe := fmt.Sprintf("pre-shift:%s:%d:%d", reminder.scheduleID, reminder.version, item.minutes)
+			dedupe := fmt.Sprintf("pre-shift:%s:%d:%s", reminder.scheduleID, reminder.version, item.remindTime)
 			title := fmt.Sprintf("%s 班前提醒", reminder.shiftName)
-			content := fmt.Sprintf("%s，您将在 %d 分钟后上班。\n日期：%s\n班次：%s（%s-%s）", reminder.displayName, item.minutes, date, reminder.shiftName, reminder.startTime, reminder.endTime)
+			content := fmt.Sprintf("%s，您今天 %s 上班。\n日期：%s\n班次：%s（%s-%s）", reminder.displayName, reminder.startTime, date, reminder.shiftName, reminder.startTime, reminder.endTime)
 			if err := enqueuePushIfBound(ctx, s.db, item.storeID, reminder.userID, pushEventPreShift, dedupe, &related, title, content); err != nil {
 				return err
 			}

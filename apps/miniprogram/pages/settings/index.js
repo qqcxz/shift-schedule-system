@@ -32,11 +32,9 @@ Page({
       schedulePublishEnabled: false,
       swapRequestEnabled: false,
       preShiftReminderEnabled: false,
-      preShiftReminderMinutes: 30,
+      preShiftReminderTime: '08:00',
       timezone: 'Asia/Shanghai',
     },
-    reminderOptions: [5, 10, 15, 30, 45, 60, 90, 120],
-    reminderIndex: 3,
     deliveries: [],
   },
 
@@ -75,9 +73,7 @@ Page({
       const data = { binding, deliveries };
       if (this.data.isManager && result[2]) {
         const settings = result[2];
-        const reminderIndex = Math.max(0, this.data.reminderOptions.indexOf(settings.preShiftReminderMinutes));
         data.settings = settings;
-        data.reminderIndex = reminderIndex;
       }
       this.setData(data);
     } catch (e) {
@@ -155,12 +151,10 @@ Page({
     this.saveStoreSettings();
   },
 
-  onReminderChange(e) {
-    const reminderIndex = Number(e.detail.value);
+  onReminderTimeChange(e) {
     this.setData({
-      reminderIndex,
       settingsDirty: true,
-      'settings.preShiftReminderMinutes': this.data.reminderOptions[reminderIndex],
+      'settings.preShiftReminderTime': e.detail.value,
     });
     this.saveStoreSettings();
   },

@@ -63,20 +63,20 @@
         </el-form-item>
         <el-form-item label="班前提醒">
           <div class="switch-row">
-            <span class="muted">按员工班次开始时间，在指定时间前发送提醒。</span>
+            <span class="muted">每天在设定时间，向当天尚未开始班次的员工发送提醒。</span>
             <el-switch v-model="storeSettings.preShiftReminderEnabled" @change="saveStoreSettings" />
           </div>
         </el-form-item>
-        <el-form-item label="提前提醒时间">
-          <el-input-number
-            v-model="storeSettings.preShiftReminderMinutes"
-            :min="5"
-            :max="1440"
-            :step="5"
-            controls-position="right"
+        <el-form-item label="提醒时间">
+          <el-time-picker
+            v-model="storeSettings.preShiftReminderTime"
+            format="HH:mm"
+            value-format="HH:mm"
+            placeholder="选择每天推送时间"
+            :clearable="false"
             @change="saveStoreSettings"
           />
-          <span class="muted minute-suffix">分钟</span>
+          <span class="muted minute-suffix">每天在该时间推送班前提醒</span>
         </el-form-item>
         <el-form-item label="门店时区">
           <el-select v-model="storeSettings.timezone" @change="saveStoreSettings">
@@ -151,7 +151,7 @@ const storeSettings = reactive<StorePushSettings>({
   schedulePublishEnabled: false,
   swapRequestEnabled: false,
   preShiftReminderEnabled: false,
-  preShiftReminderMinutes: 30,
+  preShiftReminderTime: '08:00',
   timezone: 'Asia/Shanghai',
 });
 

@@ -84,6 +84,9 @@ func migrate(ctx context.Context, db *sql.DB, dialect string) error {
 	if err := ensureUserSecurityColumns(ctx, db, dialect); err != nil {
 		return err
 	}
+	if err := ensureStorePushSettingsColumns(ctx, db, dialect); err != nil {
+		return err
+	}
 	if err := recordMigration(ctx, db, dialect, 1); err != nil {
 		return err
 	}
@@ -134,6 +137,28 @@ func ensureUserSecurityColumns(ctx context.Context, db *sql.DB, dialect string) 
 	return nil
 }
 
+func ensureStorePushSettingsColumns(ctx context.Context, db *sql.DB, dialect string) error {
+	query := "SELECT COUNT(*) FROM pragma_table_info('store_push_settings') WHERE name = ?"
+	if dialect == "mysql" {
+		query = "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'store_push_settings' AND column_name = ?"
+	}
+	var count int
+	if err := db.QueryRowContext(ctx, query, "preShiftReminderTime").Scan(&count); err != nil {
+		return fmt.Errorf("check preShiftReminderTime column: %w", err)
+	}
+	if count > 0 {
+		return nil
+	}
+	definition := "ALTER TABLE `store_push_settings` ADD COLUMN `preShiftReminderTime` varchar NOT NULL DEFAULT '08:00'"
+	if dialect == "mysql" {
+		definition = "ALTER TABLE `store_push_settings` ADD COLUMN `preShiftReminderTime` varchar(5) NOT NULL DEFAULT '08:00'"
+	}
+	if _, err := db.ExecContext(ctx, definition); err != nil {
+		return fmt.Errorf("add preShiftReminderTime column: %w", err)
+	}
+	return nil
+}
+
 var sqliteSchema = splitSQL(`
 CREATE TABLE IF NOT EXISTS "schema_migrations" ("version" integer PRIMARY KEY NOT NULL, "appliedAt" datetime NOT NULL);
 CREATE TABLE IF NOT EXISTS "stores" ("id" varchar PRIMARY KEY NOT NULL, "name" varchar NOT NULL, "address" varchar, "createdAt" datetime NOT NULL, "updatedAt" datetime NOT NULL);
@@ -144,7 +169,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS "IDX_35c4d9beec50a2e9dc7fc89012" ON "schedules
 CREATE TABLE IF NOT EXISTS "schedule_requests" ("id" varchar PRIMARY KEY NOT NULL, "storeId" varchar NOT NULL, "type" varchar NOT NULL, "status" varchar NOT NULL DEFAULT 'pending', "requesterId" varchar NOT NULL, "targetUserId" varchar, "fromDate" date NOT NULL, "toDate" date, "fromShiftId" varchar, "toShiftId" varchar, "reason" text, "reviewNote" text, "approverId" varchar, "reviewedAt" datetime, "createdAt" datetime NOT NULL, "updatedAt" datetime NOT NULL, FOREIGN KEY ("requesterId") REFERENCES "users" ("id") ON DELETE CASCADE, FOREIGN KEY ("targetUserId") REFERENCES "users" ("id") ON DELETE SET NULL);
 CREATE TABLE IF NOT EXISTS "notifications" ("id" varchar PRIMARY KEY NOT NULL, "storeId" varchar NOT NULL, "userId" varchar NOT NULL, "title" varchar NOT NULL, "content" text NOT NULL, "isRead" boolean NOT NULL DEFAULT 0, "relatedType" varchar, "relatedId" varchar, "createdAt" datetime NOT NULL);
 CREATE TABLE IF NOT EXISTS "push_bindings" ("userId" varchar PRIMARY KEY NOT NULL, "storeId" varchar NOT NULL, "tokenCiphertext" text NOT NULL, "tokenHash" varchar NOT NULL UNIQUE, "tokenSuffix" varchar NOT NULL, "createdAt" datetime NOT NULL, "updatedAt" datetime NOT NULL, FOREIGN KEY ("userId") REFERENCES "users" ("id") ON DELETE CASCADE, FOREIGN KEY ("storeId") REFERENCES "stores" ("id") ON DELETE CASCADE);
-CREATE TABLE IF NOT EXISTS "store_push_settings" ("storeId" varchar PRIMARY KEY NOT NULL, "schedulePublishEnabled" boolean NOT NULL DEFAULT 0, "swapRequestEnabled" boolean NOT NULL DEFAULT 0, "preShiftReminderEnabled" boolean NOT NULL DEFAULT 0, "preShiftReminderMinutes" integer NOT NULL DEFAULT 30, "timezone" varchar NOT NULL DEFAULT 'Asia/Shanghai', "updatedById" varchar, "createdAt" datetime NOT NULL, "updatedAt" datetime NOT NULL, FOREIGN KEY ("storeId") REFERENCES "stores" ("id") ON DELETE CASCADE);
+CREATE TABLE IF NOT EXISTS "store_push_settings" ("storeId" varchar PRIMARY KEY NOT NULL, "schedulePublishEnabled" boolean NOT NULL DEFAULT 0, "swapRequestEnabled" boolean NOT NULL DEFAULT 0, "preShiftReminderEnabled" boolean NOT NULL DEFAULT 0, "preShiftReminderTime" varchar NOT NULL DEFAULT '08:00', "timezone" varchar NOT NULL DEFAULT 'Asia/Shanghai', "updatedById" varchar, "createdAt" datetime NOT NULL, "updatedAt" datetime NOT NULL, FOREIGN KEY ("storeId") REFERENCES "stores" ("id") ON DELETE CASCADE);
 CREATE TABLE IF NOT EXISTS "push_deliveries" ("id" varchar PRIMARY KEY NOT NULL, "storeId" varchar NOT NULL, "userId" varchar NOT NULL, "eventType" varchar NOT NULL, "relatedId" varchar, "dedupeKey" varchar NOT NULL UNIQUE, "title" varchar NOT NULL, "content" text NOT NULL, "tokenHash" varchar, "msgId" varchar, "state" varchar NOT NULL DEFAULT 'pending', "providerStatus" varchar, "providerResponse" text, "attempts" integer NOT NULL DEFAULT 0, "nextAttemptAt" datetime NOT NULL, "attemptedAt" datetime, "statusCheckedAt" datetime, "createdAt" datetime NOT NULL, "updatedAt" datetime NOT NULL, FOREIGN KEY ("userId") REFERENCES "users" ("id") ON DELETE CASCADE, FOREIGN KEY ("storeId") REFERENCES "stores" ("id") ON DELETE CASCADE);
 CREATE INDEX IF NOT EXISTS "IDX_push_deliveries_pending" ON "push_deliveries" ("state", "nextAttemptAt");
 CREATE INDEX IF NOT EXISTS "IDX_push_deliveries_user" ON "push_deliveries" ("userId", "createdAt");
@@ -160,7 +185,7 @@ CREATE TABLE IF NOT EXISTS ` + "`schedules`" + ` (` + "`id`" + ` varchar(36) NOT
 CREATE TABLE IF NOT EXISTS ` + "`schedule_requests`" + ` (` + "`id`" + ` varchar(36) NOT NULL, ` + "`storeId`" + ` varchar(36) NOT NULL, ` + "`type`" + ` varchar(255) NOT NULL, ` + "`status`" + ` varchar(255) NOT NULL DEFAULT 'pending', ` + "`requesterId`" + ` varchar(36) NOT NULL, ` + "`targetUserId`" + ` varchar(36) NULL, ` + "`fromDate`" + ` date NOT NULL, ` + "`toDate`" + ` date NULL, ` + "`fromShiftId`" + ` varchar(36) NULL, ` + "`toShiftId`" + ` varchar(36) NULL, ` + "`reason`" + ` text NULL, ` + "`reviewNote`" + ` text NULL, ` + "`approverId`" + ` varchar(36) NULL, ` + "`reviewedAt`" + ` datetime(6) NULL, ` + "`createdAt`" + ` datetime(6) NOT NULL, ` + "`updatedAt`" + ` datetime(6) NOT NULL, PRIMARY KEY (` + "`id`" + `), CONSTRAINT ` + "`FK_3c76a881e407dd8b58398a8ad76`" + ` FOREIGN KEY (` + "`requesterId`" + `) REFERENCES ` + "`users`" + ` (` + "`id`" + `) ON DELETE CASCADE, CONSTRAINT ` + "`FK_641b364374a65f406ca662c16ff`" + ` FOREIGN KEY (` + "`targetUserId`" + `) REFERENCES ` + "`users`" + ` (` + "`id`" + `) ON DELETE SET NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS ` + "`notifications`" + ` (` + "`id`" + ` varchar(36) NOT NULL, ` + "`storeId`" + ` varchar(36) NOT NULL, ` + "`userId`" + ` varchar(36) NOT NULL, ` + "`title`" + ` varchar(255) NOT NULL, ` + "`content`" + ` text NOT NULL, ` + "`isRead`" + ` tinyint NOT NULL DEFAULT 0, ` + "`relatedType`" + ` varchar(255) NULL, ` + "`relatedId`" + ` varchar(36) NULL, ` + "`createdAt`" + ` datetime(6) NOT NULL, PRIMARY KEY (` + "`id`" + `)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS ` + "`push_bindings`" + ` (` + "`userId`" + ` varchar(36) NOT NULL, ` + "`storeId`" + ` varchar(36) NOT NULL, ` + "`tokenCiphertext`" + ` text NOT NULL, ` + "`tokenHash`" + ` varchar(64) NOT NULL, ` + "`tokenSuffix`" + ` varchar(8) NOT NULL, ` + "`createdAt`" + ` datetime(6) NOT NULL, ` + "`updatedAt`" + ` datetime(6) NOT NULL, PRIMARY KEY (` + "`userId`" + `), UNIQUE KEY ` + "`UQ_push_bindings_token_hash`" + ` (` + "`tokenHash`" + `), CONSTRAINT ` + "`FK_push_bindings_user`" + ` FOREIGN KEY (` + "`userId`" + `) REFERENCES ` + "`users`" + ` (` + "`id`" + `) ON DELETE CASCADE, CONSTRAINT ` + "`FK_push_bindings_store`" + ` FOREIGN KEY (` + "`storeId`" + `) REFERENCES ` + "`stores`" + ` (` + "`id`" + `) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-CREATE TABLE IF NOT EXISTS ` + "`store_push_settings`" + ` (` + "`storeId`" + ` varchar(36) NOT NULL, ` + "`schedulePublishEnabled`" + ` tinyint NOT NULL DEFAULT 0, ` + "`swapRequestEnabled`" + ` tinyint NOT NULL DEFAULT 0, ` + "`preShiftReminderEnabled`" + ` tinyint NOT NULL DEFAULT 0, ` + "`preShiftReminderMinutes`" + ` int NOT NULL DEFAULT 30, ` + "`timezone`" + ` varchar(64) NOT NULL DEFAULT 'Asia/Shanghai', ` + "`updatedById`" + ` varchar(36) NULL, ` + "`createdAt`" + ` datetime(6) NOT NULL, ` + "`updatedAt`" + ` datetime(6) NOT NULL, PRIMARY KEY (` + "`storeId`" + `), CONSTRAINT ` + "`FK_store_push_settings_store`" + ` FOREIGN KEY (` + "`storeId`" + `) REFERENCES ` + "`stores`" + ` (` + "`id`" + `) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS ` + "`store_push_settings`" + ` (` + "`storeId`" + ` varchar(36) NOT NULL, ` + "`schedulePublishEnabled`" + ` tinyint NOT NULL DEFAULT 0, ` + "`swapRequestEnabled`" + ` tinyint NOT NULL DEFAULT 0, ` + "`preShiftReminderEnabled`" + ` tinyint NOT NULL DEFAULT 0, ` + "`preShiftReminderTime`" + ` varchar(5) NOT NULL DEFAULT '08:00', ` + "`timezone`" + ` varchar(64) NOT NULL DEFAULT 'Asia/Shanghai', ` + "`updatedById`" + ` varchar(36) NULL, ` + "`createdAt`" + ` datetime(6) NOT NULL, ` + "`updatedAt`" + ` datetime(6) NOT NULL, PRIMARY KEY (` + "`storeId`" + `), CONSTRAINT ` + "`FK_store_push_settings_store`" + ` FOREIGN KEY (` + "`storeId`" + `) REFERENCES ` + "`stores`" + ` (` + "`id`" + `) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS ` + "`push_deliveries`" + ` (` + "`id`" + ` varchar(36) NOT NULL, ` + "`storeId`" + ` varchar(36) NOT NULL, ` + "`userId`" + ` varchar(36) NOT NULL, ` + "`eventType`" + ` varchar(64) NOT NULL, ` + "`relatedId`" + ` varchar(255) NULL, ` + "`dedupeKey`" + ` varchar(255) NOT NULL, ` + "`title`" + ` varchar(255) NOT NULL, ` + "`content`" + ` text NOT NULL, ` + "`tokenHash`" + ` varchar(64) NULL, ` + "`msgId`" + ` varchar(255) NULL, ` + "`state`" + ` varchar(32) NOT NULL DEFAULT 'pending', ` + "`providerStatus`" + ` varchar(255) NULL, ` + "`providerResponse`" + ` text NULL, ` + "`attempts`" + ` int NOT NULL DEFAULT 0, ` + "`nextAttemptAt`" + ` datetime(6) NOT NULL, ` + "`attemptedAt`" + ` datetime(6) NULL, ` + "`statusCheckedAt`" + ` datetime(6) NULL, ` + "`createdAt`" + ` datetime(6) NOT NULL, ` + "`updatedAt`" + ` datetime(6) NOT NULL, PRIMARY KEY (` + "`id`" + `), UNIQUE KEY ` + "`UQ_push_deliveries_dedupe`" + ` (` + "`dedupeKey`" + `), KEY ` + "`IDX_push_deliveries_pending`" + ` (` + "`state`" + `, ` + "`nextAttemptAt`" + `), KEY ` + "`IDX_push_deliveries_user`" + ` (` + "`userId`" + `, ` + "`createdAt`" + `), CONSTRAINT ` + "`FK_push_deliveries_user`" + ` FOREIGN KEY (` + "`userId`" + `) REFERENCES ` + "`users`" + ` (` + "`id`" + `) ON DELETE CASCADE, CONSTRAINT ` + "`FK_push_deliveries_store`" + ` FOREIGN KEY (` + "`storeId`" + `) REFERENCES ` + "`stores`" + ` (` + "`id`" + `) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS ` + "`push_rate_buckets`" + ` (` + "`scope`" + ` varchar(32) NOT NULL, ` + "`bucketKey`" + ` varchar(255) NOT NULL, ` + "`bucketStart`" + ` varchar(32) NOT NULL, ` + "`count`" + ` int NOT NULL DEFAULT 0, ` + "`updatedAt`" + ` datetime(6) NOT NULL, PRIMARY KEY (` + "`scope`" + `, ` + "`bucketKey`" + `, ` + "`bucketStart`" + `)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 `)

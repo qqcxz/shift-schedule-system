@@ -39,6 +39,7 @@ const (
 
 var pushTokenPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{6,256}$`)
 var pushMsgIDPattern = regexp.MustCompile(`wx_[A-Za-z0-9_-]+`)
+var pushTimePattern = regexp.MustCompile(`^([01][0-9]|2[0-3]):[0-5][0-9]$`)
 
 type pushBindingView struct {
 	Provider    string `json:"provider"`
@@ -54,7 +55,7 @@ type storePushSettings struct {
 	SchedulePublishEnabled  bool   `json:"schedulePublishEnabled"`
 	SwapRequestEnabled      bool   `json:"swapRequestEnabled"`
 	PreShiftReminderEnabled bool   `json:"preShiftReminderEnabled"`
-	PreShiftReminderMinutes int    `json:"preShiftReminderMinutes"`
+	PreShiftReminderTime    string `json:"preShiftReminderTime"`
 	Timezone                string `json:"timezone"`
 }
 
@@ -62,7 +63,7 @@ type storePushSettingsPatch struct {
 	SchedulePublishEnabled  *bool   `json:"schedulePublishEnabled"`
 	SwapRequestEnabled      *bool   `json:"swapRequestEnabled"`
 	PreShiftReminderEnabled *bool   `json:"preShiftReminderEnabled"`
-	PreShiftReminderMinutes *int    `json:"preShiftReminderMinutes"`
+	PreShiftReminderTime    *string `json:"preShiftReminderTime"`
 	Timezone                *string `json:"timezone"`
 }
 
@@ -169,24 +170,24 @@ func (s *Server) patchStorePushSettings(w http.ResponseWriter, r *http.Request) 
 	if patch.PreShiftReminderEnabled != nil {
 		settings.PreShiftReminderEnabled = *patch.PreShiftReminderEnabled
 	}
-	if patch.PreShiftReminderMinutes != nil {
-		settings.PreShiftReminderMinutes = *patch.PreShiftReminderMinutes
+	if patch.PreShiftReminderTime != nil {
+		settings.PreShiftReminderTime = strings.TrimSpace(*patch.PreShiftReminderTime)
 	}
 	if patch.Timezone != nil {
 		settings.Timezone = strings.TrimSpace(*patch.Timezone)
 	}
-	if settings.PreShiftReminderMinutes < 5 || settings.PreShiftReminderMinutes > 1440 {
-		return badRequest("班前提醒时间应在 5 到 1440 分钟之间")
+	if !pushTimePattern.MatchString(settings.PreShiftReminderTime) {
+		return badRequest("班前提醒时间格式应为 HH:MM，例如 08:30")
 	}
 	if _, err := time.LoadLocation(settings.Timezone); err != nil {
 		return badRequest("无效的时区")
 	}
 	now := nowDB()
-	query := "INSERT INTO `store_push_settings` (`storeId`, `schedulePublishEnabled`, `swapRequestEnabled`, `preShiftReminderEnabled`, `preShiftReminderMinutes`, `timezone`, `updatedById`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(`storeId`) DO UPDATE SET `schedulePublishEnabled` = excluded.`schedulePublishEnabled`, `swapRequestEnabled` = excluded.`swapRequestEnabled`, `preShiftReminderEnabled` = excluded.`preShiftReminderEnabled`, `preShiftReminderMinutes` = excluded.`preShiftReminderMinutes`, `timezone` = excluded.`timezone`, `updatedById` = excluded.`updatedById`, `updatedAt` = excluded.`updatedAt`"
+	query := "INSERT INTO `store_push_settings` (`storeId`, `schedulePublishEnabled`, `swapRequestEnabled`, `preShiftReminderEnabled`, `preShiftReminderTime`, `timezone`, `updatedById`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(`storeId`) DO UPDATE SET `schedulePublishEnabled` = excluded.`schedulePublishEnabled`, `swapRequestEnabled` = excluded.`swapRequestEnabled`, `preShiftReminderEnabled` = excluded.`preShiftReminderEnabled`, `preShiftReminderTime` = excluded.`preShiftReminderTime`, `timezone` = excluded.`timezone`, `updatedById` = excluded.`updatedById`, `updatedAt` = excluded.`updatedAt`"
 	if s.cfg.DBType == "mysql" {
-		query = "INSERT INTO `store_push_settings` (`storeId`, `schedulePublishEnabled`, `swapRequestEnabled`, `preShiftReminderEnabled`, `preShiftReminderMinutes`, `timezone`, `updatedById`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE `schedulePublishEnabled` = VALUES(`schedulePublishEnabled`), `swapRequestEnabled` = VALUES(`swapRequestEnabled`), `preShiftReminderEnabled` = VALUES(`preShiftReminderEnabled`), `preShiftReminderMinutes` = VALUES(`preShiftReminderMinutes`), `timezone` = VALUES(`timezone`), `updatedById` = VALUES(`updatedById`), `updatedAt` = VALUES(`updatedAt`)"
+		query = "INSERT INTO `store_push_settings` (`storeId`, `schedulePublishEnabled`, `swapRequestEnabled`, `preShiftReminderEnabled`, `preShiftReminderTime`, `timezone`, `updatedById`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE `schedulePublishEnabled` = VALUES(`schedulePublishEnabled`), `swapRequestEnabled` = VALUES(`swapRequestEnabled`), `preShiftReminderEnabled` = VALUES(`preShiftReminderEnabled`), `preShiftReminderTime` = VALUES(`preShiftReminderTime`), `timezone` = VALUES(`timezone`), `updatedById` = VALUES(`updatedById`), `updatedAt` = VALUES(`updatedAt`)"
 	}
-	if _, err := s.db.ExecContext(r.Context(), query, claims.StoreID, settings.SchedulePublishEnabled, settings.SwapRequestEnabled, settings.PreShiftReminderEnabled, settings.PreShiftReminderMinutes, settings.Timezone, claims.Subject, now, now); err != nil {
+	if _, err := s.db.ExecContext(r.Context(), query, claims.StoreID, settings.SchedulePublishEnabled, settings.SwapRequestEnabled, settings.PreShiftReminderEnabled, settings.PreShiftReminderTime, settings.Timezone, claims.Subject, now, now); err != nil {
 		return err
 	}
 	writeJSON(w, http.StatusOK, settings)
@@ -266,8 +267,8 @@ func (s *Server) pushBindingView(ctx context.Context, userID string) (pushBindin
 }
 
 func (s *Server) loadStorePushSettings(ctx context.Context, runner dbRunner, storeID string) (storePushSettings, error) {
-	settings := storePushSettings{PreShiftReminderMinutes: 30, Timezone: "Asia/Shanghai"}
-	err := runner.QueryRowContext(ctx, "SELECT `schedulePublishEnabled`, `swapRequestEnabled`, `preShiftReminderEnabled`, `preShiftReminderMinutes`, `timezone` FROM `store_push_settings` WHERE `storeId` = ? LIMIT 1", storeID).Scan(&settings.SchedulePublishEnabled, &settings.SwapRequestEnabled, &settings.PreShiftReminderEnabled, &settings.PreShiftReminderMinutes, &settings.Timezone)
+	settings := storePushSettings{PreShiftReminderTime: "08:00", Timezone: "Asia/Shanghai"}
+	err := runner.QueryRowContext(ctx, "SELECT `schedulePublishEnabled`, `swapRequestEnabled`, `preShiftReminderEnabled`, `preShiftReminderTime`, `timezone` FROM `store_push_settings` WHERE `storeId` = ? LIMIT 1", storeID).Scan(&settings.SchedulePublishEnabled, &settings.SwapRequestEnabled, &settings.PreShiftReminderEnabled, &settings.PreShiftReminderTime, &settings.Timezone)
 	if errors.Is(err, sql.ErrNoRows) {
 		return settings, nil
 	}

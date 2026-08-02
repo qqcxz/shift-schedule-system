@@ -69,7 +69,7 @@ export type StorePushSettings = {
   schedulePublishEnabled: boolean;
   swapRequestEnabled: boolean;
   preShiftReminderEnabled: boolean;
-  preShiftReminderMinutes: number;
+  preShiftReminderTime: string;
   timezone: string;
 };
 

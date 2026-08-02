@@ -40,17 +40,17 @@
     <view class="setting-row">
       <view>
         <view class="label">班前提醒</view>
-        <view class="muted tiny">按班次开始时间自动提醒员工</view>
+        <view class="muted tiny">每天在设定时间提醒当天有班次的员工</view>
       </view>
       <switch checked="{{settings.preShiftReminderEnabled}}" bindchange="onPreShiftChange" color="#2563eb" />
     </view>
     <view class="setting-row">
       <view>
-        <view class="label">提前提醒</view>
+        <view class="label">提醒时间</view>
         <view class="muted tiny">门店时区：{{settings.timezone}}</view>
       </view>
-      <picker mode="selector" range="{{reminderOptions}}" value="{{reminderIndex}}" bindchange="onReminderChange">
-        <view class="picker-value">{{settings.preShiftReminderMinutes}} 分钟 ›</view>
+      <picker mode="time" value="{{settings.preShiftReminderTime}}" bindchange="onReminderTimeChange">
+        <view class="picker-value">{{settings.preShiftReminderTime}} ›</view>
       </picker>
     </view>
   </view>
