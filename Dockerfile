@@ -29,6 +29,7 @@ ENV PORT=3000 \
     SEED_ON_BOOT=false
 COPY --from=server-builder /out/shift-server /app/shift-server
 COPY --from=web-builder /src/apps/web/dist /app/public
+COPY 558128e4c2fad4237084a4bbdf22a5bf.txt /app/public/558128e4c2fad4237084a4bbdf22a5bf.txt
 RUN mkdir -p /app/data
 VOLUME ["/app/data"]
 EXPOSE 3000

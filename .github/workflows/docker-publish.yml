@@ -9,6 +9,7 @@ on:
       - "docker-compose.yml"
       - "package.json"
       - "package-lock.json"
+      - "558128e4c2fad4237084a4bbdf22a5bf.txt"
       - "apps/**"
       - "deploy/**"
       - ".github/workflows/ci.yml"
