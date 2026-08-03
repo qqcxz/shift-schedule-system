@@ -14,8 +14,6 @@ import (
 
 const pushDeliveryLease = 2 * time.Minute
 
-const preShiftReminderGrace = 2 * time.Minute
-
 type pushWorker struct {
 	server *Server
 	cancel context.CancelFunc
@@ -275,13 +273,18 @@ func (s *Server) enqueueDuePreShiftReminders(ctx context.Context, now time.Time)
 			continue
 		}
 		reminderAt = time.Date(localNow.Year(), localNow.Month(), localNow.Day(), reminderAt.Hour(), reminderAt.Minute(), 0, 0, location)
-		if localNow.Before(reminderAt) || localNow.Sub(reminderAt) > preShiftReminderGrace {
-			continue
+		reminderDate := localNow
+		if localNow.Before(reminderAt) {
+			// A restart after midnight can still recover yesterday's reminder.
+			reminderDate = reminderDate.AddDate(0, 0, -1)
 		}
-		today := localNow.Format("2006-01-02")
-		tomorrow := localNow.AddDate(0, 0, 1).Format("2006-01-02")
+		reminderDay := reminderDate.Format("2006-01-02")
+		nextDay := reminderDate.AddDate(0, 0, 1).Format("2006-01-02")
+		localToday := localNow.Format("2006-01-02")
+		localTomorrow := localNow.AddDate(0, 0, 1).Format("2006-01-02")
+		localClock := localNow.Format("15:04")
 		query := "SELECT sc.`id`, sc.`userId`, sc.`workDate`, sc.`version`, u.`displayName`, st.`name`, st.`startTime`, st.`endTime` FROM `schedules` sc JOIN `users` u ON u.`id` = sc.`userId` AND u.`isActive` = 1 JOIN `shift_templates` st ON st.`id` = sc.`shiftTemplateId` AND st.`isOff` = 0 WHERE sc.`storeId` = ? AND sc.`workDate` IN (?, ?) ORDER BY sc.`userId`, sc.`workDate`, st.`startTime`"
-		upcoming, err := s.db.QueryContext(ctx, query, item.storeID, today, tomorrow)
+		upcoming, err := s.db.QueryContext(ctx, query, item.storeID, reminderDay, nextDay)
 		if err != nil {
 			return err
 		}
@@ -297,6 +300,7 @@ func (s *Server) enqueueDuePreShiftReminders(ctx context.Context, now time.Time)
 		}
 		reminders := make([]reminder, 0)
 		seenUsers := make(map[string]struct{})
+		deferredUsers := make(map[string]struct{})
 		for upcoming.Next() {
 			var reminder reminder
 			var workDate DBDate
@@ -305,7 +309,25 @@ func (s *Server) enqueueDuePreShiftReminders(ctx context.Context, now time.Time)
 				return err
 			}
 			reminder.workDate = string(workDate)
-			if reminder.workDate == today && reminder.startTime < item.remindTime {
+			if localNow.Before(reminderAt) && reminder.workDate < localToday {
+				// The previous trigger is only used to recover the next shift;
+				// never send a stale shift from the previous calendar day.
+				continue
+			}
+			if localNow.Before(reminderAt) && reminder.workDate == localToday && reminder.startTime <= localClock {
+				// Do not recover a same-day shift after it has already started.
+				continue
+			}
+			if reminder.workDate == reminderDay && reminder.startTime < item.remindTime {
+				continue
+			}
+			if localNow.Before(reminderAt) && reminder.workDate == localToday && reminder.startTime >= item.remindTime {
+				// The current day's reminder has not fired yet. Do not send it
+				// early while recovering the previous day's reminder.
+				deferredUsers[reminder.userID] = struct{}{}
+				continue
+			}
+			if _, deferred := deferredUsers[reminder.userID]; deferred {
 				continue
 			}
 			if _, exists := seenUsers[reminder.userID]; exists {
@@ -325,8 +347,10 @@ func (s *Server) enqueueDuePreShiftReminders(ctx context.Context, now time.Time)
 			related := reminder.scheduleID
 			dedupe := fmt.Sprintf("pre-shift:%s:%d:%s", reminder.scheduleID, reminder.version, item.remindTime)
 			title := fmt.Sprintf("%s 班前提醒", reminder.shiftName)
-			dayLabel := "今天"
-			if reminder.workDate == tomorrow {
+			dayLabel := reminder.workDate
+			if reminder.workDate == localToday {
+				dayLabel = "今天"
+			} else if reminder.workDate == localTomorrow {
 				dayLabel = "明天"
 			}
 			content := fmt.Sprintf("%s，您%s %s 上班。\n日期：%s\n班次：%s（%s-%s）", reminder.displayName, dayLabel, reminder.startTime, reminder.workDate, reminder.shiftName, reminder.startTime, reminder.endTime)
