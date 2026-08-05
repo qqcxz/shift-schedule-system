@@ -64,6 +64,8 @@ func (w *pushWorker) run(ctx context.Context) {
 	}()
 	defer func() { <-reminderDone }()
 	w.processPendingPushesTick(ctx)
+	lastCleanupDay := time.Now().UTC().Format("2006-01-02")
+	w.cleanupExpiredPushDeliveries(ctx)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
@@ -72,7 +74,32 @@ func (w *pushWorker) run(ctx context.Context) {
 			return
 		case <-ticker.C:
 			w.processPendingPushesTick(ctx)
+			day := time.Now().UTC().Format("2006-01-02")
+			if day != lastCleanupDay {
+				lastCleanupDay = day
+				w.cleanupExpiredPushDeliveries(ctx)
+			}
 		}
+	}
+}
+
+// cleanupExpiredPushDeliveries removes push delivery records older than the
+// configured retention window so the history list never grows without bound.
+func (w *pushWorker) cleanupExpiredPushDeliveries(ctx context.Context) {
+	keepDays := w.server.cfg.PushRecordKeepDays
+	if keepDays < 1 {
+		keepDays = 30
+	}
+	cutoff := time.Now().UTC().AddDate(0, 0, -keepDays).Format("2006-01-02 15:04:05.000")
+	result, err := w.server.db.ExecContext(ctx, "DELETE FROM `push_deliveries` WHERE `createdAt` < ?", cutoff)
+	if err != nil {
+		if !errors.Is(err, context.Canceled) {
+			log.Printf("cleanup push deliveries: %v", err)
+		}
+		return
+	}
+	if deleted, err := result.RowsAffected(); err == nil && deleted > 0 {
+		log.Printf("cleaned up %d push delivery records older than %d days", deleted, keepDays)
 	}
 }
 

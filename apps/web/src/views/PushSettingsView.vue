@@ -97,6 +97,7 @@
             <div class="muted">发送后可查询虾推啥返回的 msg_id 状态。</div>
           </div>
           <el-button text :loading="historyLoading" @click="loadHistory">刷新</el-button>
+          <el-button v-if="deliveries.length" text type="danger" :loading="clearingHistory" @click="clearHistory">清空</el-button>
         </div>
       </template>
       <el-empty v-if="!historyLoading && !deliveries.length" description="暂无推送记录" />
@@ -124,6 +125,7 @@
 import { onMounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
+  clearPushDeliveriesApi,
   deleteMyPushBindingApi,
   myPushBindingApi,
   pushDeliveriesApi,
@@ -145,6 +147,7 @@ const saving = ref(false);
 const testing = ref(false);
 const removing = ref(false);
 const historyLoading = ref(false);
+const clearingHistory = ref(false);
 const settingsSavedAt = ref(false);
 const deliveries = ref<PushDelivery[]>([]);
 const storeSettings = reactive<StorePushSettings>({
@@ -266,6 +269,28 @@ async function queryStatus(item: PushDelivery) {
     ElMessage.info(`服务商状态：${data.providerStatus || '未知'}`);
   } catch (error) {
     ElMessage.error((error as Error).message);
+  }
+}
+
+async function clearHistory() {
+  try {
+    await ElMessageBox.confirm(
+      auth.isManager ? '将删除本店全部推送记录，且无法恢复。' : '将删除您自己的全部推送记录，且无法恢复。',
+      '清空推送记录',
+      { type: 'warning', confirmButtonText: '清空', cancelButtonText: '取消' },
+    );
+  } catch {
+    return;
+  }
+  clearingHistory.value = true;
+  try {
+    const { data } = await clearPushDeliveriesApi();
+    deliveries.value = [];
+    ElMessage.success(`已清空 ${data.deleted} 条记录`);
+  } catch (error) {
+    ElMessage.error((error as Error).message);
+  } finally {
+    clearingHistory.value = false;
   }
 }
 

@@ -461,6 +461,90 @@ func TestRecoverStalePushDeliveries(t *testing.T) {
 	}
 }
 
+func TestClearPushDeliveriesScopedByRole(t *testing.T) {
+	service, server, managerToken, staffToken := newPushTestServer(t)
+	defer service.Close()
+	defer server.Close()
+
+	var manager, staff User
+	getJSONTest(t, server.URL+"/api/auth/me", managerToken, &manager)
+	getJSONTest(t, server.URL+"/api/auth/me", staffToken, &staff)
+	now := nowDB()
+	insert := func(id, userID string) {
+		t.Helper()
+		if _, err := service.db.Exec("INSERT INTO `push_deliveries` (`id`, `storeId`, `userId`, `eventType`, `dedupeKey`, `title`, `content`, `state`, `attempts`, `nextAttemptAt`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)", id, manager.StoreID, userID, pushEventTest, id, "test", "test", pushStateSent, now, now, now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	insert("staff-record-1", staff.ID)
+	insert("staff-record-2", staff.ID)
+	insert("manager-record-1", manager.ID)
+
+	var result struct {
+		Deleted int64 `json:"deleted"`
+	}
+	assertStatusTest(t, server.URL+"/api/push-deliveries", staffToken, http.MethodDelete, nil, http.StatusOK, &result)
+	if result.Deleted != 2 {
+		t.Fatalf("staff cleared %d records, want 2 (own records only)", result.Deleted)
+	}
+	var remaining int
+	if err := service.db.QueryRow("SELECT COUNT(*) FROM `push_deliveries` WHERE `storeId` = ?", manager.StoreID).Scan(&remaining); err != nil {
+		t.Fatal(err)
+	}
+	if remaining != 1 {
+		t.Fatalf("manager record should survive staff clear, got %d records", remaining)
+	}
+
+	assertStatusTest(t, server.URL+"/api/push-deliveries", managerToken, http.MethodDelete, nil, http.StatusOK, &result)
+	if result.Deleted != 1 {
+		t.Fatalf("manager cleared %d records, want 1 (store-wide)", result.Deleted)
+	}
+	var total int
+	if err := service.db.QueryRow("SELECT COUNT(*) FROM `push_deliveries`").Scan(&total); err != nil {
+		t.Fatal(err)
+	}
+	if total != 0 {
+		t.Fatalf("push deliveries should be empty after manager clear, got %d", total)
+	}
+}
+
+func TestCleanupExpiredPushDeliveries(t *testing.T) {
+	service, server, managerToken, _ := newPushTestServer(t)
+	defer service.Close()
+	defer server.Close()
+
+	var manager User
+	getJSONTest(t, server.URL+"/api/auth/me", managerToken, &manager)
+	insert := func(id string, createdAt time.Time) {
+		t.Helper()
+		stamp := createdAt.UTC().Format("2006-01-02 15:04:05.000")
+		if _, err := service.db.Exec("INSERT INTO `push_deliveries` (`id`, `storeId`, `userId`, `eventType`, `dedupeKey`, `title`, `content`, `state`, `attempts`, `nextAttemptAt`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)", id, manager.StoreID, manager.ID, pushEventTest, id, "test", "test", pushStateSent, stamp, stamp, stamp); err != nil {
+			t.Fatal(err)
+		}
+	}
+	insert("old-record", time.Now().UTC().AddDate(0, 0, -40))
+	insert("fresh-record", time.Now().UTC())
+
+	service.cfg.PushRecordKeepDays = 30
+	worker := &pushWorker{server: service}
+	worker.cleanupExpiredPushDeliveries(context.Background())
+
+	var remaining int
+	if err := service.db.QueryRow("SELECT COUNT(*) FROM `push_deliveries`").Scan(&remaining); err != nil {
+		t.Fatal(err)
+	}
+	if remaining != 1 {
+		t.Fatalf("expected only the fresh record to remain, got %d", remaining)
+	}
+	var id string
+	if err := service.db.QueryRow("SELECT `id` FROM `push_deliveries` LIMIT 1").Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	if id != "fresh-record" {
+		t.Fatalf("unexpected remaining record %q", id)
+	}
+}
+
 func newPushTestServer(t *testing.T) (*Server, *httptest.Server, string, string) {
 	t.Helper()
 	databasePath := fmt.Sprintf("%s/shift.sqlite", t.TempDir())

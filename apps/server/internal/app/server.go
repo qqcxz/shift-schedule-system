@@ -75,6 +75,7 @@ func (s *Server) routes() http.Handler {
 	s.route(mux, "GET /api/stores/current/push-settings", s.authenticate(s.getStorePushSettings))
 	s.route(mux, "PATCH /api/stores/current/push-settings", s.authenticate(s.patchStorePushSettings, RoleManager))
 	s.route(mux, "GET /api/push-deliveries", s.authenticate(s.listPushDeliveries))
+	s.route(mux, "DELETE /api/push-deliveries", s.authenticate(s.clearPushDeliveries))
 	s.route(mux, "GET /api/push-deliveries/{id}/status", s.authenticate(s.queryPushDeliveryStatus))
 
 	s.route(mux, "GET /api/shifts", s.authenticate(s.listShifts))

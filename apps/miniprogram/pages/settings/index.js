@@ -26,6 +26,7 @@ Page({
     removing: false,
     settingsSaving: false,
     settingsDirty: false,
+    clearing: false,
     isManager: false,
     token: '',
     binding: { provider: '虾推啥', tokenBound: false, maskedToken: '' },
@@ -192,5 +193,28 @@ Page({
     } catch (err) {
       // handled
     }
+  },
+
+  clearDeliveries() {
+    if (this.data.clearing) return;
+    wx.showModal({
+      title: '清空推送记录',
+      content: this.data.isManager ? '将删除本店全部推送记录，且无法恢复。' : '将删除您自己的全部推送记录，且无法恢复。',
+      confirmText: '清空',
+      confirmColor: '#dc2626',
+      success: async (result) => {
+        if (!result.confirm) return;
+        this.setData({ clearing: true });
+        try {
+          await api.clearPushDeliveries();
+          wx.showToast({ title: '已清空', icon: 'success' });
+        } catch (e) {
+          // handled
+        } finally {
+          this.setData({ clearing: false });
+          this.loadAll();
+        }
+      },
+    });
   },
 });

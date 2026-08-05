@@ -150,6 +150,11 @@
   font-size: 26rpx;
 }
 
+.link.danger {
+  margin-right: 24rpx;
+  color: #dc2626;
+}
+
 .empty {
   padding: 46rpx 0 24rpx;
   text-align: center;

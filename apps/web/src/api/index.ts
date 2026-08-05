@@ -156,6 +156,7 @@ export const storePushSettingsApi = () =>
 export const updateStorePushSettingsApi = (payload: Partial<StorePushSettings>) =>
   http.patch<StorePushSettings>('/stores/current/push-settings', payload);
 export const pushDeliveriesApi = () => http.get<PushDelivery[]>('/push-deliveries');
+export const clearPushDeliveriesApi = () => http.delete<{ ok: boolean; deleted: number }>('/push-deliveries');
 export const queryPushDeliveryStatusApi = (id: string) =>
   http.get<PushDelivery>(`/push-deliveries/${id}/status`);
 

@@ -88,6 +88,10 @@ function pushDeliveries() {
   return request({ url: '/push-deliveries' });
 }
 
+function clearPushDeliveries() {
+  return request({ url: '/push-deliveries', method: 'DELETE' });
+}
+
 function queryPushDeliveryStatus(id) {
   return request({ url: `/push-deliveries/${id}/status` });
 }
@@ -168,6 +172,7 @@ module.exports = {
   storePushSettings,
   updateStorePushSettings,
   pushDeliveries,
+  clearPushDeliveries,
   queryPushDeliveryStatus,
   schedules,
   saveMonthSchedules,

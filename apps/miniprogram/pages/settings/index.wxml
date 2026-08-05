@@ -58,7 +58,10 @@
   <view class="card">
     <view class="row between section-head">
       <view class="section-title">最近推送记录</view>
-      <text class="link" bindtap="loadAll">刷新</text>
+      <view class="row">
+        <text wx:if="{{deliveries.length}}" class="link danger" bindtap="clearDeliveries">清空</text>
+        <text class="link" bindtap="loadAll">刷新</text>
+      </view>
     </view>
     <view wx:if="{{!deliveries.length && !loading}}" class="empty muted">暂无推送记录</view>
     <view wx:for="{{deliveries}}" wx:key="id" class="delivery">

@@ -221,6 +221,22 @@ func (s *Server) listPushDeliveries(w http.ResponseWriter, r *http.Request) erro
 	return rows.Err()
 }
 
+func (s *Server) clearPushDeliveries(w http.ResponseWriter, r *http.Request) error {
+	claims := requestClaims(r)
+	query := "DELETE FROM `push_deliveries` WHERE `storeId` = ?"
+	args := []any{claims.StoreID}
+	if claims.Role != RoleManager {
+		query += " AND `userId` = ?"
+		args = append(args, claims.Subject)
+	}
+	deleted, err := execAffected(r.Context(), s.db, query, args...)
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "deleted": deleted})
+	return nil
+}
+
 func (s *Server) queryPushDeliveryStatus(w http.ResponseWriter, r *http.Request) error {
 	claims := requestClaims(r)
 	item, err := s.findPushDelivery(r.Context(), r.PathValue("id"), claims)

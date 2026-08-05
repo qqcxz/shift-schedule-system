@@ -32,6 +32,7 @@ type Config struct {
 	PushEgressKey       string
 	PushSendTimeout     time.Duration
 	PushWorkerInterval  time.Duration
+	PushRecordKeepDays  int
 }
 
 func LoadConfig() (Config, error) {
@@ -83,11 +84,18 @@ func LoadConfig() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	pushRecordKeepDays, err := envInt("PUSH_RECORD_KEEP_DAYS", 30)
+	if err != nil {
+		return Config{}, err
+	}
 	if pushSendTimeoutSeconds < 1 || pushSendTimeoutSeconds > 60 {
 		return Config{}, fmt.Errorf("PUSH_SEND_TIMEOUT_SECONDS must be between 1 and 60")
 	}
 	if pushWorkerIntervalSeconds < 5 || pushWorkerIntervalSeconds > 300 {
 		return Config{}, fmt.Errorf("PUSH_WORKER_INTERVAL_SECONDS must be between 5 and 300")
+	}
+	if pushRecordKeepDays < 1 || pushRecordKeepDays > 365 {
+		return Config{}, fmt.Errorf("PUSH_RECORD_KEEP_DAYS must be between 1 and 365")
 	}
 
 	jwtSecret, jwtSecretProvided := configuredSecret("JWT_SECRET", "dev-secret-change-me")
@@ -136,6 +144,7 @@ func LoadConfig() (Config, error) {
 		PushEgressKey:       env("PUSH_EGRESS_KEY", "default-egress"),
 		PushSendTimeout:     time.Duration(pushSendTimeoutSeconds) * time.Second,
 		PushWorkerInterval:  time.Duration(pushWorkerIntervalSeconds) * time.Second,
+		PushRecordKeepDays:  pushRecordKeepDays,
 	}, nil
 }
 

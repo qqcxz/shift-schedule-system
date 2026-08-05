@@ -142,6 +142,7 @@ DEV_MODE=true
 JWT_SECRET=dev-secret-change-me
 PUSH_ENCRYPTION_KEY=dev-push-encryption-key-change-me
 PUSH_EGRESS_KEY=default-egress
+PUSH_RECORD_KEEP_DAYS=30  # 推送记录自动保留天数，超过后每天自动清理
 CORS_ORIGIN=http://localhost:5173
 SEED_ON_BOOT=true
 ```
