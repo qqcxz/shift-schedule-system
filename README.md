@@ -305,6 +305,7 @@ npm run start:server # 运行本地 Go 后端
 | POST | `/push-settings/me/test` | 发送测试消息 |
 | GET / PATCH | `/stores/current/push-settings` | 查看或由店长修改门店事件开关 |
 | GET | `/push-deliveries` | 查看有权限的推送记录 |
+| DELETE | `/push-deliveries` | 店长清空本店（含本人和员工），店员清空本人记录 |
 | GET | `/push-deliveries/:id/status` | 用已保存的 msg_id 查询投递状态 |
 
 Token 使用 AES-GCM 加密保存。服务持久化执行每 Token 每分钟 10 条、每日 300 条、出口每日 5000 次和状态查询每分钟 5 次限流。发布与业务事件先写入投递队列，由后台 worker 发送，避免第三方网络请求阻塞业务事务。

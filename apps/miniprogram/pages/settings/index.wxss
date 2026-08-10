@@ -20,7 +20,12 @@
 }
 
 .section-head {
+  align-items: flex-start;
   gap: 20rpx;
+}
+
+.section-head > view:first-child {
+  min-width: 0;
 }
 
 .section-title {
@@ -150,9 +155,35 @@
   font-size: 26rpx;
 }
 
-.link.danger {
-  margin-right: 24rpx;
+.history-actions {
+  flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12rpx;
+}
+
+.history-action {
+  min-width: 112rpx;
+  margin: 0;
+  padding: 0 16rpx;
+  border: 1rpx solid #bfdbfe;
+  border-radius: 12rpx;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 24rpx;
+  line-height: 56rpx;
+}
+
+.history-action.danger {
+  border-color: #fecaca;
+  background: #fff;
   color: #dc2626;
+}
+
+.history-action.disabled {
+  border-color: #e5e7eb;
+  background: #f9fafb;
+  color: #9ca3af;
 }
 
 .empty {
@@ -171,10 +202,12 @@
 
 .delivery-title {
   flex: 1;
+  min-width: 0;
   margin-right: 16rpx;
   color: #1f2937;
   font-size: 27rpx;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .msg-id {

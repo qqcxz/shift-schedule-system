@@ -94,29 +94,52 @@
         <div class="card-heading">
           <div>
             <div class="heading">最近推送记录</div>
-            <div class="muted">发送后可查询虾推啥返回的 msg_id 状态。</div>
+            <div class="muted">店长可清空本店（含本人和员工）记录，店员仅可清空自己的记录。</div>
           </div>
-          <el-button text :loading="historyLoading" @click="loadHistory">刷新</el-button>
-          <el-button v-if="deliveries.length" text type="danger" :loading="clearingHistory" @click="clearHistory">清空</el-button>
+          <div class="history-actions">
+            <el-button text :loading="historyLoading" @click="loadHistory">刷新</el-button>
+            <el-button text type="danger" :disabled="!deliveries.length" :loading="clearingHistory" @click="clearHistory">
+              {{ auth.isManager ? '清空全店记录' : '清空我的记录' }}
+            </el-button>
+          </div>
         </div>
       </template>
       <el-empty v-if="!historyLoading && !deliveries.length" description="暂无推送记录" />
-      <el-table v-else :data="deliveries" size="small" stripe>
-        <el-table-column prop="title" label="消息" min-width="180" />
-        <el-table-column prop="state" label="状态" width="110">
-          <template #default="scope">
-            <el-tag :type="stateType(scope.row.state)" size="small">{{ stateLabel(scope.row.state) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="providerStatus" label="服务商状态" min-width="130" />
-        <el-table-column prop="msgId" label="msg_id" min-width="240" />
-        <el-table-column prop="createdAt" label="创建时间" min-width="170" />
-        <el-table-column label="操作" width="100">
-          <template #default="scope">
-            <el-button v-if="scope.row.msgId" link type="primary" @click="queryStatus(scope.row)">查状态</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div v-else class="history-content" v-loading="historyLoading">
+        <div class="desktop-history table-scroll">
+          <el-table :data="deliveries" size="small" stripe>
+            <el-table-column prop="title" label="消息" min-width="180" />
+            <el-table-column prop="state" label="状态" width="110">
+              <template #default="scope">
+                <el-tag :type="stateType(scope.row.state)" size="small">{{ stateLabel(scope.row.state) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="providerStatus" label="服务商状态" min-width="130" />
+            <el-table-column prop="msgId" label="msg_id" min-width="240" />
+            <el-table-column prop="createdAt" label="创建时间" min-width="170" />
+            <el-table-column label="操作" width="100">
+              <template #default="scope">
+                <el-button v-if="scope.row.msgId" link type="primary" @click="queryStatus(scope.row)">查状态</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <div class="mobile-history-list">
+          <article v-for="item in deliveries" :key="item.id" class="mobile-history-item">
+            <div class="mobile-history-top">
+              <div class="mobile-history-title">{{ item.title }}</div>
+              <el-tag :type="stateType(item.state)" size="small">{{ stateLabel(item.state) }}</el-tag>
+            </div>
+            <div class="mobile-history-meta">{{ eventLabel(item.eventType) }} · {{ formatCreatedAt(item.createdAt) }}</div>
+            <div v-if="item.providerStatus" class="mobile-history-detail">服务商：{{ item.providerStatus }}</div>
+            <div v-if="item.msgId" class="mobile-history-msg-id">{{ item.msgId }}</div>
+            <el-button v-if="item.msgId" link type="primary" class="mobile-history-action" @click="queryStatus(item)">
+              查询投递状态
+            </el-button>
+          </article>
+        </div>
+      </div>
     </el-card>
   </div>
 </template>
@@ -273,9 +296,12 @@ async function queryStatus(item: PushDelivery) {
 }
 
 async function clearHistory() {
+  if (clearingHistory.value || !deliveries.value.length) return;
   try {
     await ElMessageBox.confirm(
-      auth.isManager ? '将删除本店全部推送记录，且无法恢复。' : '将删除您自己的全部推送记录，且无法恢复。',
+      auth.isManager
+        ? '将删除本店全部推送记录（包括店长和所有员工），且无法恢复。'
+        : '将删除您自己的全部推送记录，且无法恢复。',
       '清空推送记录',
       { type: 'warning', confirmButtonText: '清空', cancelButtonText: '取消' },
     );
@@ -296,6 +322,18 @@ async function clearHistory() {
 
 function stateLabel(state: PushDelivery['state']) {
   return { pending: '待发送', preparing: '准备发送', sending: '发送中', sent: '已发送', failed: '失败', rate_limited: '限流等待' }[state] || state;
+}
+function eventLabel(eventType: PushDelivery['eventType']) {
+  return {
+    schedule_publish: '排班发布',
+    schedule_request: '排班申请',
+    swap_request: '换班申请',
+    pre_shift_reminder: '班前提醒',
+    test: '测试消息',
+  }[eventType] || eventType;
+}
+function formatCreatedAt(value: string) {
+  return value ? value.replace('T', ' ').slice(0, 16) : '-';
 }
 function stateType(state: PushDelivery['state']) {
   return state === 'sent' ? 'success' : state === 'failed' ? 'danger' : state === 'rate_limited' ? 'warning' : 'info';
@@ -318,11 +356,68 @@ onMounted(loadAll);
 }
 .card-heading,
 .switch-row,
-.form-actions {
+.form-actions,
+.history-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
+}
+.card-heading > div:first-child {
+  min-width: 0;
+}
+.history-actions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+.history-content {
+  min-width: 0;
+}
+.mobile-history-list {
+  display: none;
+}
+.mobile-history-item {
+  padding: 14px 0;
+  border-top: 1px solid #eef0f3;
+}
+.mobile-history-item:first-child {
+  border-top: none;
+}
+.mobile-history-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.mobile-history-title {
+  min-width: 0;
+  color: #1f2937;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.mobile-history-meta,
+.mobile-history-detail {
+  margin-top: 5px;
+  color: #7b8492;
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.mobile-history-msg-id {
+  margin-top: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #475569;
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.mobile-history-action {
+  margin-top: 8px;
+  padding: 0 !important;
 }
 .heading {
   font-size: 17px;
@@ -357,6 +452,41 @@ onMounted(loadAll);
   }
   .switch-row {
     align-items: flex-start;
+  }
+}
+@media (max-width: 768px) {
+  .page-card :deep(.el-card__header) {
+    padding: 14px 12px;
+  }
+  .page-card :deep(.el-card__body) {
+    padding: 14px 12px;
+  }
+  .card-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .history-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .form-actions {
+    flex-wrap: wrap;
+  }
+  .form-actions .el-button {
+    margin-left: 0;
+  }
+  .switch-row {
+    flex-wrap: wrap;
+  }
+  .switch-row .muted {
+    min-width: 0;
+  }
+  .desktop-history {
+    display: none;
+  }
+  .mobile-history-list {
+    display: flex;
+    flex-direction: column;
   }
 }
 </style>

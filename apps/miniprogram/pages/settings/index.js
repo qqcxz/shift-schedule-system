@@ -196,10 +196,10 @@ Page({
   },
 
   clearDeliveries() {
-    if (this.data.clearing) return;
+    if (this.data.clearing || !this.data.deliveries.length) return;
     wx.showModal({
       title: '清空推送记录',
-      content: this.data.isManager ? '将删除本店全部推送记录，且无法恢复。' : '将删除您自己的全部推送记录，且无法恢复。',
+      content: this.data.isManager ? '将删除本店全部推送记录（包括店长和所有员工），且无法恢复。' : '将删除您自己的全部推送记录，且无法恢复。',
       confirmText: '清空',
       confirmColor: '#dc2626',
       success: async (result) => {

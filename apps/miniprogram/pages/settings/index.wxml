@@ -58,9 +58,11 @@
   <view class="card">
     <view class="row between section-head">
       <view class="section-title">最近推送记录</view>
-      <view class="row">
-        <text wx:if="{{deliveries.length}}" class="link danger" bindtap="clearDeliveries">清空</text>
-        <text class="link" bindtap="loadAll">刷新</text>
+      <view class="row history-actions">
+        <button size="mini" class="history-action danger {{!deliveries.length || clearing ? 'disabled' : ''}}" disabled="{{!deliveries.length || clearing}}" bindtap="clearDeliveries">
+          {{isManager ? '清空全店记录' : '清空我的记录'}}
+        </button>
+        <button size="mini" class="history-action" loading="{{loading}}" bindtap="loadAll">刷新</button>
       </view>
     </view>
     <view wx:if="{{!deliveries.length && !loading}}" class="empty muted">暂无推送记录</view>
