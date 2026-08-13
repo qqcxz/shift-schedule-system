@@ -84,6 +84,7 @@ func (s *Server) routes() http.Handler {
 	s.route(mux, "DELETE /api/shifts/{id}", s.authenticate(s.deleteShift, RoleManager))
 
 	s.route(mux, "GET /api/schedules", s.authenticate(s.getMonthSchedules))
+	s.route(mux, "GET /api/schedules/export", s.authenticate(s.exportMonthSchedules))
 	s.route(mux, "GET /api/schedules/storage", s.authenticate(s.scheduleStorage, RoleManager))
 	s.route(mux, "PUT /api/schedules/month", s.authenticate(s.saveMonthSchedules, RoleManager))
 	s.route(mux, "POST /api/schedules/{month}/publish", s.authenticate(s.publishMonthSchedules, RoleManager))

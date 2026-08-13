@@ -162,6 +162,8 @@ export const queryPushDeliveryStatusApi = (id: string) =>
 
 export const schedulesApi = (month: string) =>
   http.get<{ month: string; items: ScheduleItem[] }>('/schedules', { params: { month } });
+export const exportMonthSchedulesApi = (month: string) =>
+  http.get<Blob>('/schedules/export', { params: { month }, responseType: 'blob' });
 export const saveMonthSchedulesApi = (payload: {
   month: string;
   items: Array<{

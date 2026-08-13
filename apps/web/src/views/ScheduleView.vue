@@ -14,6 +14,10 @@
       </div>
       <div class="right">
         <el-button @click="loadAll" :loading="loading">刷新</el-button>
+        <el-button :loading="exporting" :disabled="exporting" @click="exportMonth">
+          <el-icon><Download /></el-icon>
+          导出 Excel
+        </el-button>
         <el-button v-if="auth.isManager" @click="openCleanup">清理历史</el-button>
         <el-button v-if="auth.isManager" :loading="saving" @click="saveAll">保存本月排班</el-button>
         <el-button v-if="auth.isManager" type="primary" :loading="publishing" @click="publishMonth">发布并微信通知</el-button>
@@ -108,9 +112,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import dayjs from 'dayjs';
+import { Download } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   cleanupSchedulesApi,
+  exportMonthSchedulesApi,
   publishMonthSchedulesApi,
   saveMonthSchedulesApi,
   schedulesApi,
@@ -130,6 +136,7 @@ const loading = ref(false);
 const saving = ref(false);
 const publishing = ref(false);
 const cleaning = ref(false);
+const exporting = ref(false);
 const cleanupVisible = ref(false);
 const cleanupMode = ref<'keep' | 'before'>('keep');
 const keepMonths = ref(12);
@@ -282,6 +289,57 @@ async function saveAll(): Promise<boolean> {
     return false;
   } finally {
     saving.value = false;
+  }
+}
+
+function filenameFromDisposition(value?: string): string | null {
+  if (!value) return null;
+  const encoded = value.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  const quoted = value.match(/filename="([^"]+)"/i)?.[1];
+  const plain = value.match(/filename=([^;]+)/i)?.[1];
+  let filename = quoted || plain;
+  if (encoded) {
+    try {
+      filename = decodeURIComponent(encoded);
+    } catch {
+      filename = quoted || plain;
+    }
+  }
+  if (!filename) return null;
+  filename = filename
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')
+    .trim()
+    .replace(/[. ]+$/g, '');
+  if (!filename) return null;
+  return /\.xlsx$/i.test(filename) ? filename : `${filename}.xlsx`;
+}
+
+async function exportMonth() {
+  if (auth.isManager && Object.keys(drafts).length) {
+    ElMessage.warning('请先保存修改后再导出');
+    return;
+  }
+
+  exporting.value = true;
+  try {
+    const response = await exportMonthSchedulesApi(monthValue.value);
+    const filename = filenameFromDisposition(response.headers['content-disposition']) || `${monthValue.value}-排班表.xlsx`;
+    const url = URL.createObjectURL(response.data);
+    try {
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+    } finally {
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    }
+    ElMessage.success('排班表已导出');
+  } catch (error) {
+    ElMessage.error((error as Error).message);
+  } finally {
+    exporting.value = false;
   }
 }
 

@@ -11,9 +11,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/xuri/excelize/v2"
 )
 
 func TestSeedManagerMustChangePassword(t *testing.T) {
@@ -270,6 +273,135 @@ func TestSecurityAndValidationBoundaries(t *testing.T) {
 	}
 	if _, _, err := monthRange("0000-01"); err == nil {
 		t.Fatal("year zero should be rejected")
+	}
+}
+
+func TestScheduleExportEndpoint(t *testing.T) {
+	databasePath := fmt.Sprintf("%s/shift.sqlite", t.TempDir())
+	service, err := New(context.Background(), Config{
+		DBType:             "sqlite",
+		DBDatabase:         databasePath,
+		JWTSecret:          "test-secret",
+		SeedOnBoot:         true,
+		ScheduleKeepMonths: 12,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer service.Close()
+	server := httptest.NewServer(service.Handler())
+	defer server.Close()
+
+	managerToken := loginTestUserAfterSeed(t, server.URL, "qqcxz", "123456")
+	staffToken := loginTestUserAfterSeed(t, server.URL, "staff1", "123456")
+	month := monthNow()
+
+	var storeID string
+	if err := service.db.QueryRow("SELECT `storeId` FROM `users` WHERE `username` = ?", "qqcxz").Scan(&storeID); err != nil {
+		t.Fatal(err)
+	}
+	otherStoreID := uuid.NewString()
+	otherUserID := uuid.NewString()
+	otherShiftID := uuid.NewString()
+	now := nowDB()
+	if _, err := service.db.Exec("INSERT INTO `stores` (`id`, `name`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?)", otherStoreID, "Other Store", now, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.db.Exec("INSERT INTO `users` (`id`, `username`, `displayName`, `passwordHash`, `role`, `storeId`, `isActive`, `authVersion`, `mustChangePassword`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?, ?, ?, 1, 1, 0, ?, ?)", otherUserID, "other-export-user", "Other Export User", "unused", RoleStaff, otherStoreID, now, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.db.Exec("INSERT INTO `shift_templates` (`id`, `storeId`, `name`, `code`, `startTime`, `endTime`, `color`, `sortOrder`, `isOff`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?, '09:00', '17:00', '#409EFF', 1, 0, ?, ?)", otherShiftID, otherStoreID, "Other Export Shift", "OTHER", now, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.db.Exec("INSERT INTO `schedules` (`id`, `storeId`, `userId`, `workDate`, `shiftTemplateId`, `status`, `version`, `createdAt`, `updatedAt`) VALUES (?, ?, ?, ?, ?, 'normal', 1, ?, ?)", uuid.NewString(), otherStoreID, otherUserID, month+"-01", otherShiftID, now, now); err != nil {
+		t.Fatal(err)
+	}
+
+	download := func(token string) []byte {
+		t.Helper()
+		request, err := http.NewRequest(http.MethodGet, server.URL+"/api/schedules/export?month="+month, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		request.Header.Set("Authorization", "Bearer "+token)
+		response, err := http.DefaultClient.Do(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+		body, err := io.ReadAll(response.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("export returned %d: %s", response.StatusCode, string(body))
+		}
+		if got := response.Header.Get("Content-Type"); !strings.HasPrefix(got, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
+			t.Fatalf("Content-Type = %q", got)
+		}
+		disposition := response.Header.Get("Content-Disposition")
+		if !strings.Contains(disposition, `attachment; filename="`) ||
+			!strings.Contains(disposition, `"; filename*=UTF-8''`) ||
+			strings.Contains(disposition, `filename=\"`) {
+			t.Fatalf("Content-Disposition = %q", disposition)
+		}
+		if len(body) == 0 {
+			t.Fatal("export body is empty")
+		}
+		return body
+	}
+
+	managerWorkbook := download(managerToken)
+	_ = download(staffToken)
+	book, err := excelize.OpenReader(bytes.NewReader(managerWorkbook))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer book.Close()
+	if got := book.GetSheetList(); !reflect.DeepEqual(got, []string{exportMatrixSheet, exportLegendSheet}) {
+		t.Fatalf("sheet list = %#v", got)
+	}
+	rows, err := book.GetRows(exportMatrixSheet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range rows {
+		for _, value := range row {
+			if value == "Other Export User" || value == "Other Export Shift" {
+				t.Fatalf("cross-store value leaked into export: %q", value)
+			}
+		}
+	}
+
+	request, err := http.NewRequest(http.MethodGet, server.URL+"/api/schedules/export?month="+month, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("anonymous export status = %d", response.StatusCode)
+	}
+
+	request, err = http.NewRequest(http.MethodGet, server.URL+"/api/schedules/export?month=2026-13", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Authorization", "Bearer "+managerToken)
+	response, err = http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("invalid-month export status = %d", response.StatusCode)
+	}
+
+	if storeID == otherStoreID {
+		t.Fatal("test stores must differ")
 	}
 }
 

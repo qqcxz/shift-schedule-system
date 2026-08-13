@@ -276,6 +276,7 @@ npm run start:server # 运行本地 Go 后端
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/schedules?month=YYYY-MM` | 查询月排班 |
+| GET | `/schedules/export?month=YYYY-MM` | 下载当前门店指定月份的 Excel 排班表（店长和店员均可） |
 | PUT | `/schedules/month` | 店长批量保存月排班 |
 | POST | `/schedules/:month/publish` | 店长发布排班并排队微信通知 |
 
@@ -525,7 +526,6 @@ data/shift.sqlite
 - 多门店管理
 - 调班需对方先确认，再进入店长审批
 - 工时统计 / 加班统计
-- Excel 导出
 - 企业微信 / 短信通知
 - 微信小程序更完整的实时适配
 
@@ -570,5 +570,4 @@ MIT
 ## 仓库
 
 - GitHub：https://github.com/qqcxz/shift-schedule-system
-
 

@@ -16,8 +16,19 @@ http.interceptors.request.use((config) => {
 
 http.interceptors.response.use(
   (response) => response,
-  (error) => {
-    const message = error?.response?.data?.message || error.message || '请求失败';
+  async (error) => {
+    const responseData = error?.response?.data;
+    let message = responseData?.message;
+    if (!message && typeof Blob !== 'undefined' && responseData instanceof Blob) {
+      try {
+        const text = await responseData.text();
+        const parsed = JSON.parse(text) as { message?: string | string[] };
+        message = parsed.message || text;
+      } catch {
+        message = undefined;
+      }
+    }
+    message = message || error.message || '请求失败';
     return Promise.reject(new Error(Array.isArray(message) ? message.join(', ') : message));
   },
 );
