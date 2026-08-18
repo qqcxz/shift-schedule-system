@@ -111,7 +111,7 @@ import {
   Send,
   ShieldCheck,
   Users,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { changePasswordApi, storeApi } from '../api';
 import { useAuthStore } from '../stores/auth';
 

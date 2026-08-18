@@ -58,7 +58,7 @@
 import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { Activity, ArrowUpRight, CalendarDays, LockKeyhole } from 'lucide-vue-next';
+import { Activity, ArrowUpRight, CalendarDays, LockKeyhole } from '@lucide/vue';
 import { useAuthStore } from '../stores/auth';
 
 const auth = useAuthStore();

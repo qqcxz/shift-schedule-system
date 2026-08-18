@@ -2,6 +2,10 @@
   "name": "shift-schedule-system",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=22.18.0",
+    "npm": ">=10.0.0"
+  },
   "workspaces": [
     "apps/web"
   ],
@@ -14,6 +18,7 @@
     "dev:mini": "node -e \"console.log('\\n请用微信开发者工具打开目录: apps/miniprogram\\n并先启动后端: npm run dev:server\\n')\""
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^10.0.5",
+    "typescript": "^5.9.3"
   }
 }

@@ -42,7 +42,7 @@
 import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { ArrowUpRight, KeyRound } from 'lucide-vue-next';
+import { ArrowUpRight, KeyRound } from '@lucide/vue';
 import { changePasswordApi } from '../api';
 import { useAuthStore } from '../stores/auth';
 

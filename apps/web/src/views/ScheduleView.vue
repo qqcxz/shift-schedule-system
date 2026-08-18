@@ -113,7 +113,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import dayjs from 'dayjs';
-import { Download } from 'lucide-vue-next';
+import { Download } from '@lucide/vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   cleanupSchedulesApi,

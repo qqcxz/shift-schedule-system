@@ -103,7 +103,7 @@
 ## 环境要求
 
 - Go 1.24+
-- Node.js 20+（仅用于本地构建 Vue 前端）
+- Node.js 22.18+（用于本地构建 Vue 前端）
 - npm 10+
 - 生产部署可选：Docker / Docker Compose
 
