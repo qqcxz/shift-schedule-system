@@ -15,7 +15,7 @@
       <div class="right">
         <el-button @click="loadAll" :loading="loading">刷新</el-button>
         <el-button :loading="exporting" :disabled="exporting" @click="exportMonth">
-          <el-icon><Download /></el-icon>
+          <Download :size="15" :stroke-width="2" />
           导出 Excel
         </el-button>
         <el-button v-if="auth.isManager" @click="openCleanup">清理历史</el-button>
@@ -73,6 +73,7 @@
           </tr>
         </tbody>
       </table>
+      <div class="table-hint" aria-hidden="true">SWIPE TO EXPLORE <span>→</span></div>
     </div>
 
     <el-dialog v-model="cleanupVisible" title="清理历史排班" class="responsive-dialog" width="480px">
@@ -112,7 +113,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import dayjs from 'dayjs';
-import { Download } from '@element-plus/icons-vue';
+import { Download } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   cleanupSchedulesApi,
@@ -468,10 +469,28 @@ onUnmounted(() => {
 }
 
 .table-wrap {
+  position: relative;
   overflow: auto;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border: 1px solid #d9dbd3;
+  border-radius: 2px;
+  scrollbar-color: #aeb5a5 #eef0e8;
+  scrollbar-width: thin;
 }
+
+.table-hint {
+  position: sticky;
+  left: 0;
+  display: none;
+  width: fit-content;
+  margin: 8px 10px 0 auto;
+  padding: 5px 8px;
+  color: #70786c;
+  background: #eef0e8;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 9px;
+  letter-spacing: .08em;
+}
+.table-hint span { color: #8ba928; font-size: 13px; }
 
 .schedule-table {
   border-collapse: separate;
@@ -567,6 +586,10 @@ onUnmounted(() => {
     padding: 3px 6px;
     font-size: 11px;
   }
+}
+@media (max-width: 640px) {
+  .table-hint { display: block; }
+  .table-wrap { padding-bottom: 2px; }
 }
 </style>
 
