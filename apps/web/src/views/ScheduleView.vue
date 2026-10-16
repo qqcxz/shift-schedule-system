@@ -131,6 +131,7 @@ import {
 } from '../api';
 import { useAuthStore } from '../stores/auth';
 import { onRealtime } from '../realtime';
+import { showApiError } from '../api/feedback';
 
 const auth = useAuthStore();
 const loading = ref(false);
@@ -251,7 +252,7 @@ async function loadAll() {
     Object.keys(drafts).forEach((key) => delete drafts[key]);
     await loadStorage();
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     loading.value = false;
   }
@@ -286,7 +287,7 @@ async function saveAll(): Promise<boolean> {
     await loadStorage();
     return true;
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
     return false;
   } finally {
     saving.value = false;
@@ -338,7 +339,7 @@ async function exportMonth() {
     }
     ElMessage.success('排班表已导出');
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     exporting.value = false;
   }
@@ -360,7 +361,7 @@ async function publishMonth() {
     const { data } = await publishMonthSchedulesApi(monthValue.value);
     ElMessage.success(data.message || (data.queued ? `排班已发布，已排队 ${data.queued} 条微信通知` : '排班已发布，暂无已绑定 Token 的接收人'));
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     publishing.value = false;
   }
@@ -403,7 +404,7 @@ async function onCleanup() {
     cleanupVisible.value = false;
     await loadAll();
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     cleaning.value = false;
   }

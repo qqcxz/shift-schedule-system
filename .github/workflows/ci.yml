@@ -57,6 +57,9 @@ jobs:
       - name: Type check
         run: npm exec --workspace=@shift/web -- vue-tsc --noEmit -p tsconfig.json
 
+      - name: Test web authentication
+        run: npm test -w @shift/web
+
       - name: Build web
         run: npm run build -w @shift/web
 

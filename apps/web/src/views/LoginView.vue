@@ -56,13 +56,16 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { Activity, ArrowUpRight, CalendarDays, LockKeyhole } from '@lucide/vue';
 import { useAuthStore } from '../stores/auth';
+import { getLoginRedirect } from '../router/login-redirect';
+import { showApiError } from '../api/feedback';
 
 const auth = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 const loading = ref(false);
 const form = reactive({ username: '', password: '' });
 
@@ -76,9 +79,9 @@ async function onSubmit() {
   try {
     await auth.login(form.username.trim(), form.password);
     ElMessage.success('登录成功');
-    router.push(auth.mustChangePassword ? '/change-password' : '/schedule');
+    await router.replace(auth.mustChangePassword ? '/change-password' : getLoginRedirect(route.query.redirect));
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     loading.value = false;
   }

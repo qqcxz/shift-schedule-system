@@ -151,6 +151,7 @@ import {
 } from '../api';
 import { onRealtime } from '../realtime';
 import { useAuthStore } from '../stores/auth';
+import { showApiError } from '../api/feedback';
 
 const auth = useAuthStore();
 const loading = ref(false);
@@ -181,7 +182,7 @@ async function loadUsers() {
     const { data } = await usersApi(includeInactive.value);
     users.value = data || [];
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     loading.value = false;
   }
@@ -239,7 +240,7 @@ async function onSave() {
     dialogVisible.value = false;
     await loadUsers();
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     saving.value = false;
   }
@@ -251,7 +252,7 @@ async function onToggleActive(row: User, isActive: boolean) {
     ElMessage.success(isActive ? '已启用' : '已停用');
     await loadUsers();
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   }
 }
 
@@ -267,7 +268,7 @@ async function onDelete(row: User) {
     await loadUsers();
   } catch (error) {
     if ((error as Error).message && (error as Error).message !== 'cancel') {
-      ElMessage.error((error as Error).message);
+      showApiError(error);
     }
   }
 }

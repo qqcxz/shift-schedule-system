@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import type { User } from '../api';
-import { loginApi, meApi } from '../api';
-import { connectSocket, disconnectSocket } from '../realtime';
+import type { User } from '../api/index.ts';
+import { loginApi, meApi } from '../api/index.ts';
+import { connectSocket, disconnectSocket, getSocket } from '../realtime.ts';
 
 const TOKEN_KEY = 'shift_token';
 const USER_KEY = 'shift_user';
@@ -32,8 +32,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function restore() {
     if (!token.value) return;
+    const restoringToken = token.value;
     try {
       const { data } = await meApi();
+      if (token.value !== restoringToken) return;
       user.value = data;
       localStorage.setItem(USER_KEY, JSON.stringify(data));
       if (data.mustChangePassword) {
@@ -42,7 +44,13 @@ export const useAuthStore = defineStore('auth', () => {
         connectSocket(token.value);
       }
     } catch {
-      logout();
+      // HTTP 401 is handled centrally. A temporary network/server failure must
+      // not erase a valid cached session or sign out a newer login.
+      // Initialize before pages subscribe; Socket.IO will retry when the network
+      // recovers. Leave any existing socket (and its listeners) intact.
+      if (token.value === restoringToken && isLoggedIn.value && !mustChangePassword.value && !getSocket()) {
+        connectSocket(restoringToken);
+      }
     }
   }
 

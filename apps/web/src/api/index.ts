@@ -1,4 +1,4 @@
-import http from './http';
+import http from './http.ts';
 
 export type User = {
   id: string;
@@ -91,7 +91,7 @@ export type PushDelivery = {
 };
 
 export const loginApi = (username: string, password: string) =>
-  http.post<{ accessToken: string; user: User }>('/auth/login', { username, password });
+  http.post<{ accessToken: string; user: User }>('/auth/login', { username, password }, { skipAuth: true });
 
 export const meApi = () => http.get<User>('/auth/me');
 export const changePasswordApi = (payload: {

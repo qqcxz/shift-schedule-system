@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
+import { getAuthRedirect } from './auth-guard';
 import LoginView from '../views/LoginView.vue';
 import LayoutView from '../views/LayoutView.vue';
 import ScheduleView from '../views/ScheduleView.vue';
@@ -50,24 +51,6 @@ const router = createRouter({
   ],
 });
 
-router.beforeEach(async (to) => {
-  const auth = useAuthStore();
-  if (!to.meta.public && !auth.isLoggedIn) {
-    return '/login';
-  }
-  if (to.path === '/login' && auth.isLoggedIn) {
-    return auth.mustChangePassword ? '/change-password' : '/schedule';
-  }
-  if (auth.mustChangePassword && to.path !== '/change-password') {
-    return '/change-password';
-  }
-  if (to.path === '/change-password' && !auth.mustChangePassword) {
-    return '/schedule';
-  }
-  if (to.meta.managerOnly && !auth.isManager) {
-    return '/schedule';
-  }
-  return true;
-});
+router.beforeEach((to) => getAuthRedirect(to, useAuthStore()) ?? true);
 
 export default router;

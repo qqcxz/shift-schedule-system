@@ -45,6 +45,7 @@ import { ElMessage } from 'element-plus';
 import { ArrowUpRight, KeyRound } from '@lucide/vue';
 import { changePasswordApi } from '../api';
 import { useAuthStore } from '../stores/auth';
+import { showApiError } from '../api/feedback';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -72,7 +73,7 @@ async function onSubmit() {
     auth.logout();
     router.push('/login');
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     loading.value = false;
   }

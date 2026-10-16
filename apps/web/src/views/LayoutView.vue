@@ -114,6 +114,7 @@ import {
 } from '@lucide/vue';
 import { changePasswordApi, storeApi } from '../api';
 import { useAuthStore } from '../stores/auth';
+import { showApiError } from '../api/feedback';
 
 const auth = useAuthStore();
 const route = useRoute();
@@ -175,7 +176,7 @@ async function onChangePassword() {
     auth.logout();
     router.push('/login');
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     passwordSaving.value = false;
   }

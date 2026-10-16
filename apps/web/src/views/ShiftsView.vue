@@ -126,6 +126,7 @@ import {
   type ShiftTemplate,
 } from '../api';
 import { onRealtime } from '../realtime';
+import { showApiError } from '../api/feedback';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -158,7 +159,7 @@ async function loadShifts() {
     const { data } = await shiftsApi();
     shifts.value = data || [];
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     loading.value = false;
   }
@@ -211,7 +212,7 @@ async function onSave() {
     dialogVisible.value = false;
     await loadShifts();
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     saving.value = false;
   }
@@ -227,7 +228,7 @@ async function onDelete(row: ShiftTemplate) {
     await loadShifts();
   } catch (error) {
     if ((error as Error).message && (error as Error).message !== 'cancel') {
-      ElMessage.error((error as Error).message);
+      showApiError(error);
     }
   }
 }

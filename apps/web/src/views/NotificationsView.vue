@@ -45,6 +45,7 @@ import {
   type NotificationItem,
 } from '../api';
 import { onRealtime } from '../realtime';
+import { showApiError } from '../api/feedback';
 
 const loading = ref(false);
 const clearing = ref(false);
@@ -61,7 +62,7 @@ async function load() {
     const { data } = await notificationsApi();
     items.value = data;
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     loading.value = false;
   }
@@ -73,7 +74,7 @@ async function markOne(item: NotificationItem) {
     await markNotificationReadApi(item.id);
     item.isRead = true;
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   }
 }
 
@@ -83,7 +84,7 @@ async function markAll() {
     items.value = items.value.map((item) => ({ ...item, isRead: true }));
     ElMessage.success('已全部标记为已读');
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   }
 }
 
@@ -93,7 +94,7 @@ async function removeOne(item: NotificationItem) {
     items.value = items.value.filter((row) => row.id !== item.id);
     ElMessage.success('已删除');
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   }
 }
 
@@ -115,7 +116,7 @@ async function clearRead() {
     items.value = items.value.filter((item) => !item.isRead);
     ElMessage.success(`已清理 ${data.deleted} 条已读消息`);
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     clearing.value = false;
   }
@@ -139,7 +140,7 @@ async function clearAll() {
     items.value = [];
     ElMessage.success(`已清空 ${data.deleted} 条消息`);
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     clearing.value = false;
   }

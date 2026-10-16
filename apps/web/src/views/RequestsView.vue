@@ -167,6 +167,7 @@ import {
 } from '../api';
 import { useAuthStore } from '../stores/auth';
 import { onRealtime } from '../realtime';
+import { showApiError } from '../api/feedback';
 
 const auth = useAuthStore();
 const loading = ref(false);
@@ -221,7 +222,7 @@ async function loadRequests() {
     const { data } = await requestsApi(status.value);
     requests.value = data;
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     loading.value = false;
   }
@@ -261,7 +262,7 @@ async function onCreate() {
     ElMessage.success('申请已提交');
     await loadRequests();
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     submitting.value = false;
   }
@@ -275,7 +276,7 @@ async function onApprove(id: string) {
     await loadRequests();
   } catch (error) {
     if ((error as Error).message !== 'cancel') {
-      ElMessage.error((error as Error).message);
+      showApiError(error);
     }
   }
 }
@@ -291,7 +292,7 @@ async function onReject(id: string) {
     await loadRequests();
   } catch (error) {
     if ((error as Error).message !== 'cancel') {
-      ElMessage.error((error as Error).message);
+      showApiError(error);
     }
   }
 }
@@ -304,7 +305,7 @@ async function onDelete(id: string) {
     ElMessage.success('已删除');
   } catch (error) {
     if ((error as Error).message !== 'cancel') {
-      ElMessage.error((error as Error).message);
+      showApiError(error);
     }
   }
 }
@@ -328,7 +329,7 @@ async function clearResolved() {
     await loadRequests();
     ElMessage.success(`已清理 ${data.deleted} 条记录`);
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     clearing.value = false;
   }

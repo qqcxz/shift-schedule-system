@@ -162,6 +162,7 @@ import {
   type StorePushSettings,
 } from '../api';
 import { useAuthStore } from '../stores/auth';
+import { showApiError } from '../api/feedback';
 
 const auth = useAuthStore();
 const binding = ref<PushBinding | null>(null);
@@ -198,7 +199,7 @@ async function loadHistory() {
     const { data } = await pushDeliveriesApi();
     deliveries.value = data;
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     historyLoading.value = false;
   }
@@ -208,7 +209,7 @@ async function loadAll() {
   try {
     await Promise.all([loadBinding(), loadStoreSettings(), loadHistory()]);
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   }
 }
 
@@ -224,7 +225,7 @@ async function saveBinding() {
     token.value = '';
     ElMessage.success('Token 已安全保存');
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     saving.value = false;
   }
@@ -246,7 +247,7 @@ async function removeBinding() {
     binding.value = { provider: '虾推啥', tokenBound: false };
     ElMessage.success('Token 已解绑');
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     removing.value = false;
   }
@@ -259,7 +260,7 @@ async function sendTest() {
     deliveries.value = [data, ...deliveries.value.filter((item) => item.id !== data.id)];
     ElMessage.success(data.state === 'sent' ? '测试消息已发送' : `测试消息状态：${stateLabel(data.state)}`);
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
     await loadHistory();
   } finally {
     testing.value = false;
@@ -279,7 +280,7 @@ async function saveStoreSettings() {
       settingsSavedAt.value = true;
       window.setTimeout(() => (settingsSavedAt.value = false), 1800);
     } catch (error) {
-      if (version === settingsRequestVersion) ElMessage.error((error as Error).message);
+      if (version === settingsRequestVersion) showApiError(error);
     }
   }, 200);
 }
@@ -291,7 +292,7 @@ async function queryStatus(item: PushDelivery) {
     if (index >= 0) deliveries.value[index] = data;
     ElMessage.info(`服务商状态：${data.providerStatus || '未知'}`);
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   }
 }
 
@@ -314,7 +315,7 @@ async function clearHistory() {
     deliveries.value = [];
     ElMessage.success(`已清空 ${data.deleted} 条记录`);
   } catch (error) {
-    ElMessage.error((error as Error).message);
+    showApiError(error);
   } finally {
     clearingHistory.value = false;
   }
