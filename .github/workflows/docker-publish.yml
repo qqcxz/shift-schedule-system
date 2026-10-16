@@ -66,7 +66,7 @@ jobs:
         run: npm ci
 
       - name: Type check web
-        run: npx vue-tsc --noEmit -p apps/web/tsconfig.json
+        run: npm exec --workspace=@shift/web -- vue-tsc --noEmit -p tsconfig.json
 
       - name: Build web
         run: npm run build -w @shift/web
